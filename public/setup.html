@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Médiacom · Mise en service du stand</title>
+  <meta name="theme-color" content="#04080f">
+  <link rel="icon" href="/assets/logo-m.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/os.css">
+  <style>
+    .s { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 36px 28px 60px; }
+    .s-head { display: flex; align-items: center; gap: 16px; }
+    .s-head svg { width: 40px; color: #fff; }
+    .s h1 { margin: 26px 0 6px; font: 500 40px/1.05 var(--f-ui); letter-spacing: -.02em; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin-top: 28px; }
+    .card { display: flex; flex-direction: column; gap: 14px; padding: 20px; grid-column: auto; }
+    .card .qr { max-width: 240px; }
+    .card .qr { width: 100%; }
+    .card code { font: 500 12.5px/1.4 var(--f-mono); color: var(--blue-2); overflow-wrap: anywhere; }
+    .steps { counter-reset: s; display: grid; gap: 12px; margin: 30px 0 0; padding: 0; }
+    .steps li { list-style: none; position: relative; padding: 16px 18px 16px 58px; border-radius: var(--r-3); background: rgba(10,17,30,.8); border: 1px solid var(--line); color: var(--text-2); }
+    .steps li::before { counter-increment: s; content: counter(s, decimal-leading-zero); position: absolute; left: 18px; top: 16px; font: 600 13px/1.4 var(--f-mono); color: var(--blue); }
+    .steps b { color: var(--text); font-weight: 500; }
+    .private { border-color: rgba(255, 77, 77, .35) !important; }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i class="horizon"></i><i class="beam b1"></i><i class="beam b3"></i><i class="grain"></i></div>
+  <main class="s">
+    <div class="s-head"><span id="logo"></span><span class="eyebrow">Médiacom Event OS · mise en service</span><span class="spacer"></span><span class="tc"><span class="led on"></span><span id="lan">Hub actif</span></span></div>
+    <h1>Le hub du stand est en marche.</h1>
+    <p class="lede">Ce Mac sert l’application à toutes les tablettes, au mur LED et aux téléphones des visiteurs, sans internet. Gardez-le allumé et branché pendant tout le salon.</p>
+    <div class="cards" id="cards"></div>
+    <ol class="steps">
+      <li><b>Wi-Fi.</b> Branchez le routeur du stand, connectez ce Mac et les tablettes au même réseau, puis renseignez son nom et son mot de passe dans l’onglet Pass de l’application.</li>
+      <li><b>Certificat.</b> Une seule fois par iPad : scannez le QR « Certificat », installez le profil, puis activez la confiance dans Réglages › Général › Informations › Réglages des certificats. Sans lui, l’app fonctionne mais sans caméra en direct ni cache hors-ligne.</li>
+      <li><b>Tablettes.</b> Sur chaque iPad, scannez le QR « Équipe » avec l’appareil photo, ouvrez le lien, puis Partager → Sur l’écran d’accueil.</li>
+      <li><b>Mur LED.</b> Sur l’ordinateur relié au processeur LED, ouvrez l’adresse « Mur LED » dans Chrome, puis double-cliquez pour passer en plein écran.</li>
+      <li><b>Fin de journée.</b> Exportez les contacts en CSV depuis l’onglet Contacts. Les données restent aussi dans le dossier <code>data/</code> de l’application.</li>
+    </ol>
+  </main>
+  <script type="module">
+    import { LOGO_M, qrSVG, esc } from '/js/ui.js';
+    document.querySelector('#logo').innerHTML = LOGO_M;
+    async function load() {
+      let info;
+      try { info = await (await fetch('/api/info', { cache: 'no-store' })).json(); } catch { document.querySelector('#cards').innerHTML = '<p class="banner">Hub injoignable.</p>'; return; }
+      document.querySelector('#lan').textContent = info.lan?.length ? info.lan.join(' · ') : 'Pas de réseau local détecté';
+      const cards = [];
+      if (info.caUrl) cards.push({ t: 'Certificat iPad', s: 'Ouvrez sur chaque iPad, puis Réglages › Profil téléchargé › Installer, et Réglages › Général › Informations › Réglages des certificats › activer « Mediacom Stand CA ».', url: info.caUrl });
+      if (info.pairUrl) cards.push({ t: 'Équipe', s: 'Tablettes et iPhone de l’équipe. Ne pas afficher au public.', url: info.pairUrl, cls: 'private' });
+      else cards.push({ t: 'Équipe', s: 'Ouvrez cette page depuis le Mac du hub (localhost) pour afficher le QR d’appairage.', url: '', cls: 'private' });
+      cards.push({ t: 'Mur LED', s: 'À ouvrir sur l’ordinateur du mur.', url: `${info.base}/mur` });
+      cards.push({ t: 'Visiteurs', s: 'Envoi de mots sur le mur.', url: `${info.base}/nuage` });
+      if (info.wifi) cards.push({ t: 'Wi-Fi du stand', s: esc(info.wifi.ssid), raw: `WIFI:T:WPA;S:${info.wifi.ssid};P:${info.wifi.pass};;` });
+      document.querySelector('#cards').innerHTML = cards.map((c, i) => `<article class="module card ${c.cls || ''}" style="animation:rise 600ms var(--ease-out) both;animation-delay:${i * 70}ms">
+        <span class="eyebrow"><b>${String(i + 1).padStart(2, '0')}</b> · ${c.t}</span>
+        ${c.url || c.raw ? `<div class="qr">${qrSVG(c.raw || c.url, { ecc: 'M', margin: 1 })}</div>` : ''}
+        <p class="muted" style="margin:0;font-size:14px">${c.s}</p>${c.url ? `<code>${esc(c.url)}</code>` : ''}</article>`).join('');
+    }
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+BEGIN:VCARD
+VERSION:3.0
+N:Algoud;Éric;;;
+FN:Éric Algoud
+ORG:Médiacom · Le son, la lumière, l’image
+TITLE:Direction
+TEL;TYPE=WORK,VOICE:04 91 35 55 55
+TEL;TYPE=WORK:04 88 80 13 77
+EMAIL;TYPE=INTERNET,PREF:contact@mediacom.org
+URL:https://www.mediacom.org
+ADR;TYPE=WORK:;;25 boulevard de Saint-Marcel;Marseille;;13011;France
+NOTE:Prestataire technique son, lumière, vidéo et scène mobile depuis 1999.
+END:VCARD

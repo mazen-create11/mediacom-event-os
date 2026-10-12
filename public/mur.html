@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Médiacom · Mur LED</title>
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="/assets/logo-m.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/jost.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/os.css">
+  <link rel="stylesheet" href="/css/mur.css">
+  <script type="module" src="/js/mur.js"></script>
+</head>
+<body class="wall-page">
+  <div class="wall" id="wall">
+    <div class="w-bg" aria-hidden="true">
+      <div class="w-photo" id="w-photo"></div>
+      <i class="w-beam a"></i><i class="w-beam b"></i><i class="w-beam c"></i><i class="w-beam d"></i>
+      <i class="w-haze"></i>
+    </div>
+
+    <header class="w-head">
+      <div class="w-brand"><span class="w-m" id="w-m"></span><span class="w-word">MEDIACOM</span><span class="w-base">Le son · la lumière · l’image</span></div>
+      <div class="w-live"><span class="w-dot"></span><span>En direct</span><span class="w-sep"></span><span id="w-sends">0</span>&nbsp;<span class="w-dim">mots envoyés</span></div>
+    </header>
+
+    <!-- Scène 1 : nuage de mots -->
+    <section class="w-scene" data-scene="cloud">
+      <div class="w-cloud" id="w-cloud" aria-live="polite"></div>
+      <aside class="w-join">
+        <p class="w-kicker">Participez</p>
+        <h2 class="w-question" id="w-question">Votre prochain événement, en un mot&nbsp;?</h2>
+        <div class="w-steps" id="w-steps"></div>
+        <div class="w-last" id="w-last" hidden><span class="w-kicker">Dernier mot reçu</span><b id="w-last-t"></b></div>
+      </aside>
+    </section>
+
+    <!-- Scène 2 : showreel photo -->
+    <section class="w-scene" data-scene="reel">
+      <div class="w-reel" id="w-reel"></div>
+      <div class="w-reel-cap"><p class="w-kicker" id="w-reel-k"></p><h2 id="w-reel-t"></h2></div>
+      <div class="w-mini-join" id="w-mini-join"></div>
+    </section>
+
+    <!-- Scène 3 : MediaScène -->
+    <section class="w-scene" data-scene="mediascene">
+      <div class="w-ms-photo" id="w-ms-photo"></div>
+      <div class="w-ms-copy">
+        <img class="w-ms-logo" src="/assets/logo-mediascene.png" alt="MediaScène">
+        <h2>La scène mobile qui se déploie en <em>2&nbsp;heures</em>.</h2>
+        <div class="w-ms-specs" id="w-ms-specs"></div>
+      </div>
+    </section>
+
+    <!-- Scène 4 : message -->
+    <section class="w-scene" data-scene="message">
+      <div class="w-message"><p class="w-kicker">Médiacom</p><h2 id="w-message"></h2></div>
+    </section>
+
+    <!-- Scène 5 : noir -->
+    <section class="w-scene" data-scene="black"></section>
+
+    <footer class="w-ticker" aria-hidden="true"><div class="w-track" id="w-track"></div></footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Médiacom · Console</title>
+  <meta name="theme-color" content="#04080f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/assets/logo-m.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
+  <link rel="stylesheet" href="/css/os.css">
+  <style>
+    .m { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; padding: calc(14px + env(safe-area-inset-top)) 14px calc(28px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; }
+    .m-top { display: flex; align-items: center; gap: 12px; padding: 4px 4px 8px; }
+    .m-top svg { width: 28px; color: #fff; }
+    .m-top b { font-weight: 600; letter-spacing: .18em; font-size: 14px; }
+    .m-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: var(--r-3); overflow: hidden; border: 1px solid var(--line); }
+    .m-kpis div { padding: 14px 14px 12px; background: rgba(9, 15, 27, .96); }
+    .m-kpis b { display: block; font: 600 34px/1 var(--f-mono); letter-spacing: -.03em; }
+    .m-kpis span { font: 500 10px/1.3 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+    .m .strips { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .m .strips .strip { padding: 8px 4px; gap: 8px; }
+    .m .strips .scribble { font-size: 10px; letter-spacing: .04em; padding: 5px 2px; }
+    .m .strips .meter { height: 70px; }
+    .feed-item { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px 4px; border-top: 1px solid var(--line); font-size: 14px; }
+    .feed-item:first-child { border-top: 0; }
+    .feed-item .who { font: 500 11px/1 var(--f-mono); color: var(--text-3); text-align: right; }
+    .feed-item .n { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .feed-item .s { color: var(--text-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i class="horizon"></i><i class="grain"></i></div>
+  <main class="m">
+    <header class="m-top"><span id="logo"></span><b>CONSOLE</b><span class="spacer"></span><span class="tc" style="height:32px"><span class="led" id="st-led"></span><span class="clock" id="clock">--:--:--</span></span><button class="op-btn" id="op" style="padding:3px"></button></header>
+
+    <div class="m-kpis"><div><b id="k-total">0</b><span>Contacts</span></div><div><b id="k-hot" style="color:#ff6b6b">0</b><span>Chauds</span></div><div><b id="k-words">0</b><span>Mots</span></div></div>
+
+    <article class="module"><header class="mod-head"><span class="n">01</span><span class="t">Équipe</span></header><div class="mod-body" style="padding:12px"><div class="strips" id="strips"></div></div></article>
+
+    <article class="module"><header class="mod-head"><span class="n">02</span><span class="t">Alerte équipe</span></header>
+      <div class="mod-body stack" style="gap:12px">
+        <div class="chips sm" id="quick"></div>
+        <form class="row" id="alert-f"><input class="input" id="alert-in" placeholder="Message aux tablettes" maxlength="200" style="height:46px"><button class="btn btn-primary btn-icon" aria-label="Envoyer l’alerte"><svg viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4 20-7z"/></svg></button></form>
+      </div></article>
+
+    <article class="module"><header class="mod-head"><span class="n">03</span><span class="t">Mur LED</span><span class="r" id="wall-st"></span></header>
+      <div class="mod-body">
+        <div class="scene-keys" id="scenes" style="grid-template-columns:repeat(5,minmax(0,1fr));gap:6px"></div>
+        <div class="toggle-row mt-2"><div class="l"><b>Accepter les mots</b></div><button class="switch" role="switch" id="accept" aria-label="Accepter les mots"></button></div>
+      </div></article>
+
+    <article class="module"><header class="mod-head"><span class="n">04</span><span class="t">Fil du stand</span><span class="r"><a href="/api/export.csv" class="dim" id="csv">CSV</a></span></header><div class="mod-body" style="padding:6px 16px 10px" id="feed"></div></article>
+  </main>
+  <div class="toasts" id="toasts" aria-live="polite" style="top:calc(14px + env(safe-area-inset-top))"></div>
+  <dialog class="sheet" id="sheet"></dialog>
+  <script type="module">
+    import { createHub, withToken } from '/js/hub.js';
+    import { OPERATORS, opById, initial, TEMPS } from '/js/data.js';
+    import { LOGO_M, icon, esc, ago, toast, sheet, closeSheet, chime, unlockAudio } from '/js/ui.js';
+    const $ = (s) => document.querySelector(s);
+    $('#logo').innerHTML = LOGO_M;
+    $('#csv').href = withToken('/api/export.csv');
+    const QUICK = ['Renfort au stand', 'Visiteur important au stand', 'Démo lumière dans 5 min', 'Pause 15 min'];
+    $('#quick').innerHTML = QUICK.map((q) => `<button class="chip" aria-pressed="false" data-q="${q}">${q}</button>`).join('');
+    const SC = [['cloud', 'Nuage', 'cloud'], ['reel', 'Reel', 'image'], ['mediascene', 'Scène', 'scene'], ['message', 'Msg', 'message'], ['black', 'Noir', 'blackout']];
+    $('#scenes').innerHTML = SC.map(([id, l, i]) => `<button class="key" data-scene="${id}" style="width:auto;min-height:62px">${icon(i)}<span>${l}</span></button>`).join('');
+
+    const me = () => opById(localStorage.getItem('mc_op') || 'mazen');
+    const hub = createHub({ kind: 'master', operator: () => localStorage.getItem('mc_op') || '' });
+    const renderOp = () => ($('#op').innerHTML = `<span class="avatar me">${initial(me().name)}</span>`);
+    renderOp();
+    $('#op').onclick = () => {
+      const d = sheet(`<div class="sheet-head"><span class="eyebrow">Opérateur</span><h2>Qui tient ce téléphone&nbsp;?</h2></div><div class="sheet-body"><div class="strips" style="grid-template-columns:repeat(2,minmax(0,1fr))">${OPERATORS.map((o) => `<button class="strip" data-op="${o.id}"><span class="avatar">${initial(o.name)}</span><span class="scribble">${esc(o.name)}</span></button>`).join('')}</div></div>`);
+      d.querySelectorAll('[data-op]').forEach((b) => (b.onclick = () => { localStorage.setItem('mc_op', b.dataset.op); closeSheet(); renderOp(); hub.connect(); }));
+    };
+
+    function render() {
+      const s = hub.state;
+      $('#k-total').textContent = s.leads.length;
+      $('#k-hot').textContent = s.leads.filter((l) => l.temperature === 'hot').length;
+      $('#k-words').textContent = s.words.filter((w) => !w.hidden).length;
+      const online = new Set(s.presence.map((p) => p.op));
+      const max = Math.max(4, ...OPERATORS.map((o) => s.leads.filter((l) => l.operator === o.id).length));
+      $('#strips').innerHTML = OPERATORS.map((o) => { const n = s.leads.filter((l) => l.operator === o.id).length; return `<div class="strip ${o.id === me().id ? 'me' : ''}"><span class="scribble">${esc(o.name)}</span><span class="meter" style="--level:${(n / max).toFixed(3)}"></span><span class="count mono">${n}</span><span class="state"><span class="led ${online.has(o.id) ? 'on' : ''}"></span></span></div>`; }).join('');
+      const w = s.wall || {};
+      document.querySelectorAll('[data-scene]').forEach((b) => (b.dataset.scene === (w.scene || 'cloud') ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current')));
+      $('#accept').setAttribute('aria-checked', w.accept !== false);
+      $('#wall-st').textContent = w.accept === false ? 'en pause' : 'en direct';
+      const items = s.leads.slice(0, 12);
+      $('#feed').innerHTML = items.length ? items.map((l) => `<div class="feed-item"><span class="led" data-s="${l.temperature}"></span><div style="min-width:0"><div class="n">${esc(l.name || 'Sans nom')}</div><div class="s">${esc(l.company || '')}${l.transfer ? ` · transmis à ${esc(opById(l.transfer.to).name)}` : ''}</div></div><div class="who">${esc(opById(l.operator).name)}<br>${ago(l.createdAt)}</div></div>`).join('') : '<p class="dim" style="margin:8px 0">Aucun contact pour l’instant.</p>';
+      const st = s.status;
+      $('#st-led').dataset.s = st === 'online' ? 'live' : st === 'local' ? 'cold' : 'off';
+    }
+    hub.on('change', render);
+    hub.on('presence', render);
+    hub.on('status', (st) => { render(); if (st === 'unpaired') toast({ title: 'Téléphone non appairé', text: 'Scannez le QR « Équipe » de la page /setup.', tone: 'off', timeout: 0 }); });
+    hub.on('lead', (l) => { if (Date.now() - (l.createdAt || 0) < 8000) toast({ title: `${opById(l.operator).name} · nouveau contact`, text: esc(l.name || l.company || ''), tone: l.temperature === 'hot' ? 'hot' : 'blue' }); });
+    hub.on('transfer', (t) => { if (t.to === me().id) { chime('transfer'); toast({ title: `${opById(t.from).name} vous passe un contact`, text: esc(t.lead.name || ''), tone: 'blue', timeout: 10000 }); } });
+    hub.on('alert', (a) => { if (a.from !== me().name && (a.to === 'all' || a.to === me().id)) { chime('alert'); toast({ title: `Alerte · ${esc(a.from)}`, text: esc(a.text), tone: 'hot', timeout: 12000 }); } });
+
+    $('#scenes').onclick = (e) => { const b = e.target.closest('[data-scene]'); if (b) hub.setWall({ scene: b.dataset.scene }); };
+    $('#accept').onclick = () => hub.setWall({ accept: !(hub.state.wall.accept !== false) });
+    const sendAlert = (text) => { hub.alert(me().name, text); toast({ title: 'Alerte envoyée', text: esc(text), tone: 'live' }); };
+    $('#quick').onclick = (e) => { const b = e.target.closest('[data-q]'); if (b) sendAlert(b.dataset.q); };
+    $('#alert-f').onsubmit = (e) => { e.preventDefault(); const v = $('#alert-in').value.trim(); if (v) { sendAlert(v); $('#alert-in').value = ''; } };
+    setInterval(() => ($('#clock').textContent = new Date(Date.now() + hub.state.serverOffset).toLocaleTimeString('fr-FR')), 1000);
+    document.addEventListener('pointerdown', unlockAudio, { once: true });
+    hub.connect();
+    render();
+  </script>
+</body>
+</html>

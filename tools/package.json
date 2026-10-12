@@ -1,0 +1,16 @@
+{
+  "name": "mediacom-event-os-tools",
+  "private": true,
+  "description": "Outils de build (vendors, polices, photos). Le runtime n'a besoin que de Node.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "@fontsource-variable/jost": "5.2.5",
+    "@fontsource/jetbrains-mono": "5.2.5",
+    "esbuild": "0.25.0",
+    "jsqr": "1.4.0",
+    "qrcode-generator": "1.4.4",
+    "three": "0.170.0"
+  }
+}

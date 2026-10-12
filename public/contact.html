@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Médiacom · Contact</title>
+  <meta name="description" content="Médiacom, prestataire technique son, lumière, image et scène mobile à Marseille depuis 1999.">
+  <meta name="theme-color" content="#04080f">
+  <link rel="icon" href="/assets/logo-m.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
+  <link rel="stylesheet" href="/css/os.css">
+  <style>
+    .c { position: relative; z-index: 1; max-width: 520px; margin: 0 auto; padding: calc(30px + env(safe-area-inset-top)) 20px calc(30px + env(safe-area-inset-bottom)); min-height: 100dvh; display: flex; flex-direction: column; gap: 22px; }
+    .c-hero { position: relative; border-radius: 22px; overflow: hidden; aspect-ratio: 4 / 3; border: 1px solid var(--line-2); }
+    .c-hero img { width: 100%; height: 100%; object-fit: cover; animation: kb 18s var(--ease-io) infinite alternate; }
+    .c-hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, #04080f 2%, transparent 60%); }
+    .c-hero .m { position: absolute; z-index: 1; left: 20px; bottom: 18px; display: flex; align-items: center; gap: 12px; }
+    .c-hero .m svg { width: 40px; color: #fff; }
+    .c-hero .m b { font-weight: 600; letter-spacing: .2em; font-size: 18px; display: block; }
+    .c-hero .m small { font: 500 10.5px/1.3 var(--f-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--blue-2); }
+    .c h1 { margin: 0; font: 500 30px/1.1 var(--f-ui); letter-spacing: -.015em; }
+    .c p { margin: 8px 0 0; color: var(--text-2); }
+    .c-list { display: flex; flex-direction: column; gap: 10px; }
+    .c-row { display: flex; align-items: center; gap: 14px; min-height: 64px; padding: 12px 16px; border-radius: 16px; background: rgba(10,17,30,.82); border: 1px solid var(--line-2); transition: transform var(--d-1) var(--ease-out); }
+    .c-row:active { transform: scale(.98); }
+    .c-row svg { width: 22px; height: 22px; flex: none; stroke: var(--blue-2); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .c-row b { display: block; font-weight: 500; }
+    .c-row span { color: var(--text-2); font-size: 13.5px; }
+    .c-legal { text-align: center; font-size: 12px; color: var(--text-3); margin-top: auto; }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i class="horizon"></i><i class="beam b2"></i><i class="grain"></i></div>
+  <main class="c">
+    <div class="c-hero"><img src="/assets/photos/scene-m-rouge-s.jpg" alt="Plateau lumière Médiacom"><div class="m"><span id="logo"></span><div><b>MEDIACOM</b><small>Le son · la lumière · l’image</small></div></div></div>
+    <div><h1>Votre événement, notre technique.</h1><p>Prestataire technique son, lumière, vidéo et scène mobile, à Marseille depuis 1999.</p></div>
+    <div class="c-list" id="list"></div>
+    <p class="c-legal">25 bd de Saint-Marcel, 13011 Marseille</p>
+  </main>
+  <script type="module">
+    import { LOGO_M, icon } from '/js/ui.js';
+    import { COMPANY } from '/js/data.js';
+    document.querySelector('#logo').innerHTML = LOGO_M;
+    const rows = [
+      { i: 'download', t: 'Enregistrer le contact', s: 'Ajoute Médiacom à votre répertoire', href: '/mediacom.vcf' },
+      { i: 'phone', t: COMPANY.phone, s: 'Appeler l’équipe', href: `tel:${COMPANY.phone.replace(/\s/g, '')}` },
+      { i: 'mail', t: COMPANY.email, s: 'Décrire votre projet', href: `mailto:${COMPANY.email}?subject=${encodeURIComponent('Projet événement · rencontre sur le salon')}` },
+      { i: 'link', t: 'mediacom.org', s: 'Prestations et réalisations', href: COMPANY.site },
+      { i: 'scene', t: 'MediaScène', s: 'La scène mobile hydraulique', href: COMPANY.siteScene },
+      { i: 'star', t: 'Avis Google', s: 'Ils ont travaillé avec nous', href: COMPANY.reviews },
+    ];
+    document.querySelector('#list').innerHTML = rows.map((r) => `<${r.href ? `a href="${r.href}"${r.href.startsWith('http') ? ' target="_blank" rel="noopener"' : ''}` : `button data-act="${r.act}"`} class="c-row">${icon(r.i)}<div><b>${r.t}</b><span>${r.s}</span></div></${r.href ? 'a' : 'button'}>`).join('');
+  </script>
+</body>
+</html>

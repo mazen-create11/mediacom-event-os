@@ -1,56 +1,53 @@
-# 🎛️ MEDIACOM EVENT OS - STAND & PROSPECTION HORS-LIGNE
+# Médiacom Event OS · application de stand
 
-> **Application Salon & Régie Tablette Multi-Sessions (100% Hors-Ligne)**  
-> Conçue sur-mesure pour **Mediacom Marseille** (Son, Lumière, Vidéo & Scénographie).
+Application de salon pour Médiacom (prestataire technique son, lumière, image, scène mobile MediaScène).
+Un Mac sur le Wi-Fi du stand sert l'application à toutes les tablettes, au mur LED et aux téléphones des visiteurs. Aucun internet requis.
 
----
+## Démarrer
 
-## 🚀 Les Piliers Clés du Projet (Vision x10 / x100)
+Double-cliquer **`Lancer le hub du stand.command`** (ou `node server.js`). Node.js 18+ suffit : aucune dépendance à installer.
+La page `http://localhost:3000/setup` s'ouvre avec les QR codes de mise en service.
 
-1. **100% Autonome Hors-Ligne (Offline-First)** :
-   - Fonctionne sans aucune connexion internet grâce au Service Worker PWA et au stockage IndexedDB/LocalStorage.
-   - Zéro bug ni temps de latence en salon, même si le réseau 4G/5G ou Wi-Fi du parc des expositions est saturé.
+| Écran | Adresse | Pour qui |
+|---|---|---|
+| Application tablette | `https://<ip>:3443/?t=<jeton>` (QR « Équipe ») | Mazen, Coraline, Nolan, Éric |
+| Console iPhone | `/master` | régie en mobilité |
+| Mur LED 4 × 2 m | `http://<ip>:3000/mur` | ordinateur du mur, double-clic = plein écran |
+| Page visiteur | `http://<ip>:3000/nuage` | téléphones des visiteurs (QR affiché sur le mur) |
+| Contact visiteur | `/contact` | fiche Médiacom, vCard |
+| Mise en service | `http://localhost:3000/setup` | Mac du hub uniquement |
 
-2. **Multi-Sessions & Coordination d'Équipe Instantanée** :
-   - Profils dédiés : **Mazen** (Direction de Projet), **Nolan** (Direction Technique), **Coraline** (Chargée de Projets), **Éric** (Direction Générale).
-   - **Transfert de Lead en 1 clic** : Si Coraline discute avec un prospect et doit le passer à Mazen ou Éric, elle clique sur *Passer à un collègue* avec une note interne. La tablette de Mazen émet instantanément un **carillon sonore de régie** et affiche un **toast d'alerte visuel**.
+## Ce que fait l'application
 
-3. **Capture Prospect Multi-Mode (< 20 secondes)** :
-   - Formulaire express avec tags techniques (Son L-Acoustics, Lyres Robe, Écran LED, Scénographie, etc.).
-   - Mode Scan Badge Visiteur (QR / Code-barres).
-   - Mode Scan Carte de Visite (photo & archivage).
-   - Qualification immédiate : 🔥 Chaud / ⚡ Tiède / ❄️ Froid.
+- **Régie** : contacts du jour, VU-mètre de cadence, contacts chauds, tranches d'équipe avec présence en direct, timeline par demi-heure, besoins les plus demandés, aperçu du mur.
+- **Contacts** : saisie en 20 s (Express, lecture du QR d'un badge, photo de carte), détection des doublons, fiche, transfert à un collègue (sa tablette sonne), QR vCard sans réseau, export CSV (contacts « démo » exclus).
+- **Mur LED** : 5 scènes pilotées depuis la tablette ou l'iPhone (nuage de mots, showreel, MediaScène, message, noir), modération, question du nuage, fond.
+- **Book** : MediaScène en tête (chiffres des fiches techniques), 23 photos réelles de mediacom.org par univers, mode présentation plein écran.
+- **Devis express** : fourchette indicative, barème éditable et validable par Éric (bandeau « à valider » tant qu'il ne l'a pas fait), impression.
+- **Scène 3D** : plateau, mur LED incurvé animé, truss, lyres et faisceaux, salle en plénière, gala ou concert ; résolution et cabinets calculés.
+- **Électricité** : charge des deux lignes 16 A, alerte à 80 % et en surcharge.
+- **Pass & réglages** : QR visiteurs (fiche contact, site, MediaScène, avis Google), appairage, Wi-Fi du stand, nom de l'événement.
 
-4. **Contrôleur du Mur LED & Nuage de Mots Live** :
-   - Pilotez ce qui s'affiche sur l'écran 4x2m du stand depuis votre tablette.
-   - Les visiteurs scannent le QR code géant avec leur smartphone et envoient leurs mots en direct sur le mur LED.
-   - Modération en direct depuis la tablette.
+## Mise en service (une fois)
 
-5. **Simulateur 3D Scénographique Interactif** :
-   - Rendu 3D temps réel du plateau séminaire avec écran LED incurvé, lyres asservies avec faisceaux lumineux en mouvement et mobilier lounge.
-   - Idéal pour bluffer les agences événementielles directement sur le stand.
+1. Routeur Wi-Fi du stand : le Mac du hub, les tablettes et l'ordinateur du mur sur le même réseau. Renseigner le Wi-Fi dans l'onglet Pass : le mur affiche alors un QR « Rejoindre le Wi-Fi » pour les visiteurs.
+2. Chaque iPad : QR « Certificat » → installer le profil → Réglages › Général › Informations › Réglages des certificats → activer « Mediacom Stand CA ». Sans cette étape l'app marche, mais sans caméra en direct ni cache hors-ligne.
+3. Chaque iPad : QR « Équipe » → ouvrir → Partager › Sur l'écran d'accueil → choisir l'opérateur.
+4. Ordinateur du mur : ouvrir l'adresse « Mur LED » dans Chrome, double-clic pour le plein écran.
 
-6. **Supervision Électrique Stand (Outil Technique Nolan)** :
-   - Calcul en temps réel des charges sur les 2 lignes PC 16A (3 600W max par ligne = 7 200W total).
-   - Détection des risques de disjonction (Écran LED + Lyres 900W + Son).
+## Sécurité et données
 
-7. **Export & Sauvegarde** :
-   - Export CSV Excel immédiat en fin de journée pour intégration directe dans votre CRM ou boîte mail.
+- Contacts = données personnelles : accès réservé aux appareils appairés (jeton dans `data/config.json`). Les visiteurs n'accèdent qu'à l'envoi de mots et à la fiche contact.
+- Mots visiteurs : 28 caractères, liens et grossièretés refusés, un envoi toutes les 2,5 s par téléphone, modération depuis la tablette.
+- Données dans `data/` (exclu de git) : `db.json`, photos de cartes, certificats. Export CSV en fin de journée depuis l'onglet Contacts.
+- Hors réseau, chaque tablette garde ses saisies et les renvoie à la reconnexion.
 
----
+## Développement
 
-## 📲 Comment l'installer sur les Tablettes (iPad & Android)
+- `public/` : pages et modules ES sans build. `tools/` : `npm install && npm run build` régénère polices, bundles three.js / QR / jsQR, photos et icônes.
+- `_legacy/` : version précédente (référence). `_research/` : photos sources, logo, CSS du site.
 
-### Méthode 1 : En 1 Clic (Mode Stand-Alone PWA)
-1. Ouvrez Safari sur l'iPad et allez sur l'URL locale de l'application (ou le fichier `index.html`).
-2. Cliquez sur l'icône de partage de Safari (le carré avec la flèche vers le haut).
-3. Sélectionnez **"Sur l'écran d'accueil"** (Add to Home Screen).
-4. L'application s'affiche avec son icône Mediacom comme une application native Apple, en plein écran, sans barre d'adresse, et fonctionne hors-ligne.
+## À valider par l'équipe
 
-### Méthode 2 : Lancement en Réseau Local Stand (Wi-Fi de poche ou Routeur de Régie)
-Si vous disposez d'un mini-routeur Wi-Fi ou du PC de régie sur le stand :
-```bash
-cd mediacom-event-app
-node server.js
-```
-Toutes les tablettes connectées au Wi-Fi du stand tapent simplement l'IP du PC (ex: `http://192.168.1.10:3000`) et sont automatiquement synchronisées entre elles !
+- Éric : barème du devis, droits d'usage des photos créditées, compte Instagram (non affiché tant qu'il n'est pas confirmé).
+- Nolan : consommations réelles du mur LED et des lyres (onglet Électricité, valeurs indicatives).

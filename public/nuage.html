@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>Médiacom · Votre mot sur le mur</title>
+  <meta name="description" content="Envoyez votre mot sur le mur LED du stand Médiacom.">
+  <meta name="theme-color" content="#04080f">
+  <link rel="icon" href="/assets/logo-m.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
+  <link rel="preload" href="/fonts/jost.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/os.css">
+  <style>
+    body { min-height: 100dvh; overflow-x: hidden; }
+    .v { position: relative; z-index: 1; min-height: 100dvh; display: flex; flex-direction: column; padding: calc(22px + env(safe-area-inset-top)) 20px calc(22px + env(safe-area-inset-bottom)); max-width: 520px; margin: 0 auto; }
+    .v-brand { display: flex; align-items: center; gap: 12px; }
+    .v-brand svg { width: 34px; color: #fff; filter: drop-shadow(0 0 12px rgba(49,146,255,.5)); }
+    .v-brand b { font-weight: 600; letter-spacing: .2em; font-size: 15px; }
+    .v-brand small { display: block; font: 500 10px/1.3 var(--f-mono); letter-spacing: .2em; text-transform: uppercase; color: var(--blue-2); }
+    .v-main { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 34px 0 18px; }
+    .v h1 { margin: 12px 0 0; font: 500 clamp(32px, 9vw, 44px)/1.05 var(--f-ui); letter-spacing: -.02em; text-wrap: balance; }
+    .v-form { margin-top: 28px; position: relative; }
+    .v-in { width: 100%; height: 68px; padding: 0 76px 0 20px; border-radius: 18px; background: rgba(255,255,255,.05); border: 1px solid var(--line-3); font: 500 22px/1 var(--f-ui); color: #fff; -webkit-appearance: none; transition: border-color var(--d-2), box-shadow var(--d-2); }
+    .v-in:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 5px rgba(49,146,255,.18); }
+    .v-in::placeholder { color: #55637a; }
+    .v-send { position: absolute; right: 8px; top: 8px; width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: var(--blue-fill); color: #fff; box-shadow: 0 8px 24px -8px var(--glow); transition: transform var(--d-1) var(--ease-out), opacity var(--d-2); }
+    .v-send:active { transform: scale(.94); }
+    .v-send svg { width: 24px; height: 24px; stroke: #fff; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .v-send[disabled] { opacity: .45; }
+    .v-meta { display: flex; justify-content: space-between; margin-top: 10px; font: 500 12px/1 var(--f-mono); color: var(--text-3); }
+    .v-sugg { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .v-sugg button { height: 40px; padding: 0 14px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid var(--line-2); font-size: 15px; color: var(--text-2); }
+    .v-sugg button:active { background: rgba(49,146,255,.15); color: #fff; }
+    .v-msg { min-height: 54px; margin-top: 18px; }
+    .v-ok { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; background: rgba(57,217,138,.08); border: 1px solid rgba(57,217,138,.35); animation: rise 500ms var(--ease-out) both; }
+    .v-ok b { font-weight: 500; }
+    .v-err { padding: 14px 16px; border-radius: 14px; background: rgba(255,181,71,.08); border: 1px solid rgba(255,181,71,.35); color: #ffd79a; animation: rise 400ms var(--ease-out) both; }
+    .fly { position: fixed; z-index: 5; left: 50%; font: 600 30px/1 var(--f-ui); color: #fff; text-shadow: 0 0 18px var(--blue), 0 0 40px var(--blue-fill); pointer-events: none; white-space: nowrap; }
+    .v-foot { display: flex; flex-direction: column; gap: 10px; }
+    .v-card { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 16px; background: rgba(10,17,30,.8); border: 1px solid var(--line-2); }
+    .v-card svg { width: 22px; height: 22px; stroke: var(--blue-2); fill: none; stroke-width: 1.8; flex: none; }
+    .v-card b { font-weight: 500; display: block; }
+    .v-card span { color: var(--text-2); font-size: 13.5px; }
+    .v-legal { text-align: center; font-size: 11.5px; color: var(--text-3); margin: 6px 0 0; }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i class="horizon"></i><i class="beam b1"></i><i class="beam b3"></i><i class="grain"></i></div>
+  <main class="v">
+    <header class="v-brand"><span id="logo"></span><div><b>MEDIACOM</b><small>Le son · la lumière · l’image</small></div></header>
+    <section class="v-main">
+      <span class="eyebrow" id="ev">Mur LED du stand</span>
+      <h1 id="q">Votre prochain événement, en un mot&nbsp;?</h1>
+      <form class="v-form" id="f" autocomplete="off">
+        <label class="sr" for="w">Votre mot</label>
+        <input class="v-in" id="w" maxlength="28" placeholder="Votre mot" enterkeyhint="send" autocapitalize="sentences" spellcheck="true">
+        <button class="v-send" id="s" aria-label="Envoyer sur le mur"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        <div class="v-meta"><span id="n">0 / 28</span><span id="sent"></span></div>
+      </form>
+      <div class="v-sugg" id="sugg" aria-label="Suggestions"></div>
+      <div class="v-msg" id="msg" aria-live="polite"></div>
+    </section>
+    <footer class="v-foot">
+      <a class="v-card" href="/contact"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg><div><b>Un projet ? Gardez notre contact</b><span>Son, lumière, image, scène mobile</span></div></a>
+      <p class="v-legal">Aucune donnée personnelle collectée. Les mots sont modérés avant affichage.</p>
+    </footer>
+  </main>
+  <script type="module">
+    import { LOGO_M, esc } from '/js/ui.js';
+    const $ = (s) => document.querySelector(s);
+    $('#logo').innerHTML = LOGO_M;
+    const SUGG = ['Gala', 'Concert', 'Séminaire', 'Festival', 'Lancement', 'Mariage', 'Convention', 'Spectacle'];
+    $('#sugg').innerHTML = SUGG.map((s) => `<button type="button">${s}</button>`).join('');
+    let sent = Number(sessionStorage.getItem('mc_sent') || 0);
+    const showSent = () => ($('#sent').textContent = sent ? `${sent} envoyé${sent > 1 ? 's' : ''}` : '');
+    showSent();
+
+    fetch('/api/wall', { cache: 'no-store' }).then((r) => r.json()).then((d) => {
+      if (d.question) $('#q').textContent = d.question;
+      if (d.eventName && d.eventName !== 'Salon') $('#ev').textContent = `Mur LED · ${d.eventName}`;
+      if (!d.accept) msg('err', 'Le mur fait une pause. Réessayez dans quelques minutes.');
+    }).catch(() => msg('err', 'Le mur n’est pas joignable. Connectez-vous au Wi-Fi du stand, puis rechargez la page.'));
+
+    const input = $('#w');
+    input.addEventListener('input', () => ($('#n').textContent = `${input.value.length} / 28`));
+    $('#sugg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { input.value = b.textContent; input.dispatchEvent(new Event('input')); send(); } });
+    $('#f').addEventListener('submit', (e) => { e.preventDefault(); send(); });
+
+    function msg(kind, html) {
+      $('#msg').innerHTML = kind === 'ok' ? `<div class="v-ok"><span class="led on"></span><div><b>${html}</b><br><span class="muted" style="font-size:14px">Levez les yeux vers le mur LED.</span></div></div>` : kind === 'err' ? `<div class="v-err">${html}</div>` : '';
+    }
+
+    let busy = false;
+    async function send() {
+      const text = input.value.trim();
+      if (!text || busy) return;
+      busy = true;
+      $('#s').disabled = true;
+      try {
+        const r = await fetch('/api/words', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'Envoi impossible pour le moment');
+        fly(text);
+        sent++; sessionStorage.setItem('mc_sent', sent); showSent();
+        msg('ok', `« ${esc(d.word?.text || text)} » est sur le mur.`);
+        input.value = ''; input.dispatchEvent(new Event('input'));
+        navigator.vibrate?.(30);
+      } catch (e) {
+        msg('err', esc(e.message === 'Failed to fetch' ? 'Pas de connexion au mur. Vérifiez que vous êtes sur le Wi-Fi du stand.' : e.message));
+      } finally {
+        setTimeout(() => { busy = false; $('#s').disabled = false; }, 1200);
+      }
+    }
+
+    function fly(text) {
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const r = input.getBoundingClientRect();
+      const f = Object.assign(document.createElement('div'), { className: 'fly', textContent: text });
+      f.style.top = `${r.top + 18}px`;
+      document.body.append(f);
+      f.animate([
+        { transform: 'translate(-50%, 0) scale(1)', opacity: 1, filter: 'blur(0)' },
+        { transform: `translate(-50%, ${-r.top - 120}px) scale(.6)`, opacity: 0, filter: 'blur(6px)' },
+      ], { duration: 1100, easing: 'cubic-bezier(.5,0,.75,0)' }).finished.then(() => f.remove());
+    }
+  </script>
+</body>
+</html>
