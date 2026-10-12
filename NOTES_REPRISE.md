@@ -12,6 +12,10 @@ Refonte complète livrée le 12/10/2026 (Claude Code). L'ancienne version est da
 - MediaScène : gamme 60 m² (remorque 3,5 t) et 3-en-1 80/100/120 m² (semi-remorque 26 t), chiffres relus dans `~/Desktop/prospection-podium-mobile/07-docs/`. Les fiches 70, 120 et 160 m² du même dossier ne sont pas reprises (hors gamme annoncée).
 - Scène 3D MediaScène déployable, mur (scène MediaScène, message avec compte à rebours), Book à deux ouvertures, bilan `/bilan`, photos 2 880 px.
 
+## En ligne (12/10, fin de journée)
+- Démo : https://mediacom-event-os.pages.dev (Cloudflare Pages + D1, voir `functions/api/`). Code : https://github.com/mazen-create11/mediacom-event-os (public).
+- Envois de mots illimités. Rapport complet : `docs/rapports/2026-10-12/RAPPORT.md`.
+
 ## Reste à faire
 - Test réel sur iPad : installation du certificat, caméra (badge QR), ajout à l'écran d'accueil, son du carillon.
 - Mur LED réel : vérifier la sortie 2:1 sur le processeur (Novastar) et la lisibilité à 5 m.

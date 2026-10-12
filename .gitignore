@@ -3,3 +3,5 @@ data/
 .DS_Store
 *.log
 tools/node_modules/
+_archive/
+tools/tests/out/
