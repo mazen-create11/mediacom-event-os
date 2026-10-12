@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Mediacom Event OS - Stand & Prospection</title>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./qrcode.min.js"></script>
+</head>
+<body>
+
+  <div id="app-container">
+    
+    <!-- SIDEBAR NAVIGATION (Tablettes & Desktop) -->
+    <aside class="sidebar">
+      <div class="logo-container">
+        <div class="brand-badge">
+          <div class="brand-title">MEDIA<span>COM</span></div>
+          <div class="brand-subtitle">EVENT OS • SALON PRO</div>
+        </div>
+      </div>
+
+      <!-- SÉLECTEUR DE SESSION OPÉRATEUR -->
+      <div class="operator-card" id="operator-selector-card" title="Changer d'utilisateur">
+        <div class="operator-info">
+          <div class="avatar-circle" id="current-op-avatar">M</div>
+          <div class="operator-details">
+            <div class="op-name" id="current-op-name">Mazen</div>
+            <div class="op-role" id="current-op-role">Business Developer</div>
+          </div>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,0.4)"><path d="M7 10l5 5 5-5z"/></svg>
+      </div>
+
+      <!-- STATUT DU STAND (HORS-LIGNE & SYNC) -->
+      <div class="stand-status-bar">
+        <span><span class="status-dot offline"></span> Stand 100% Hors-Ligne</span>
+        <span style="color: var(--mc-cyan); font-size: 10px;">Offline First</span>
+      </div>
+
+      <!-- MENU DE NAVIGATION -->
+      <nav class="nav-menu">
+        <a class="nav-item active" data-view="dashboard">
+          <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+          Capture Leads
+          <span class="badge-counter" id="nav-leads-count">3</span>
+        </a>
+        <a class="nav-item" data-view="screencenter">
+          <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+          Régie Écran Mur LED
+        </a>
+        <a class="nav-item" data-view="showcase">
+          <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>
+          Book & Estimateur
+        </a>
+        <a class="nav-item" data-view="simulator3d">
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Configurateur 3D Scène
+        </a>
+        <a class="nav-item" data-view="powercalc">
+          <svg viewBox="0 0 24 24"><path d="M11 21h-1l1-7H7.5c-.88 0-.33-.75-.31-.78C8.48 10.94 10.42 7.54 13.01 3h1l-1 7h3.51c.4 0 .62.19.4.66C12.97 17.55 11 21 11 21z"/></svg>
+          Calcul Élec (Régie)
+        </a>
+        <a class="nav-item" data-view="connect">
+          <svg viewBox="0 0 24 24"><path d="M3 5v4h2V5h4V3H5c-1.1 0-2 .9-2 2zm2 10H3v4c0 1.1.9 2 2 2h4v-2H5v-4zm14 4h-4v2h4c1.1 0 2-.9 2-2v-4h-2v4zm0-16h-4v2h4v4h2V5c0-1.1-.9-2-2-2z"/></svg>
+          Pass Contact Visiteur
+        </a>
+      </nav>
+
+      <!-- FOOTER SIDEBAR -->
+      <div class="sidebar-footer">
+        <button class="quick-lead-btn" onclick="exportLeadsCSV()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          Exporter CSV Salon
+        </button>
+      </div>
+    </aside>
+
+    <!-- CONTENU PRINCIPAL -->
+    <main class="content-area">
+      
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <div class="topbar-title">
+          <h1 id="topbar-main-title">Dashboard Stand & Capture Leads</h1>
+          <p id="topbar-sub-title">Collecte ultra-rapide et coordination d'équipe</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn-icon" onclick="window.open('./display.html', '_blank')" title="Ouvrir le Mur LED plein écran">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+          </button>
+          <button class="btn-primary-sm" onclick="exportLeadsCSV()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            Export Données
+          </button>
+        </div>
+      </header>
+
+      <!-- VUE 1 : DASHBOARD & CAPTURE PROSPECT -->
+      <section id="view-dashboard" class="view-section active">
+        
+        <!-- KPI EN DIRECT -->
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Contacts Stand</div>
+            <div class="kpi-value" id="kpi-total-leads">3</div>
+            <div class="kpi-meta">Sur l'événement</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Leads Chauds 🔥</div>
+            <div class="kpi-value" id="kpi-hot-leads">2</div>
+            <div class="kpi-meta" style="color:var(--mc-red);">Opportunités directes</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Mes Contacts Pris</div>
+            <div class="kpi-value" id="kpi-my-leads">1</div>
+            <div class="kpi-meta" style="color:var(--mc-cyan);">Sur ma session active</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Mode Réseau</div>
+            <div class="kpi-value" style="font-size:20px; color:var(--mc-green);">100% Hors-Ligne</div>
+            <div class="kpi-meta">Zéro bug de réseau</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          
+          <!-- COLONNE GAUCHE : FORMULAIRE DE SAISIE RAPIDE -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--mc-blue)"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                Nouveau Prospect
+              </div>
+              <span style="font-size: 11px; color: var(--mc-cyan); font-weight:700;">Saisie Terrain &lt; 20s</span>
+            </div>
+
+            <!-- ONGLETS DE SAISIE -->
+            <div class="capture-tabs">
+              <button class="cap-tab-btn active" data-mode="express">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/></svg>
+                Saisie Express
+              </button>
+              <button class="cap-tab-btn" data-mode="badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5v4h2V5h4V3H5c-1.1 0-2 .9-2 2zm2 10H3v4c0 1.1.9 2 2 2h4v-2H5v-4zm14 4h-4v2h4c1.1 0 2-.9 2-2v-4h-2v4zm0-16h-4v2h4v4h2V5c0-1.1-.9-2-2-2z"/></svg>
+                Scan Badge / QR
+              </button>
+              <button class="cap-tab-btn" data-mode="card">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-7-2h2v-4h4v-2h-4V7h-2v4H8v2h4z"/></svg>
+                Scan Carte Visite
+              </button>
+            </div>
+
+            <!-- ZONE SCAN CAMÉRA -->
+            <div id="camera-scan-box" style="display:none; margin-bottom:20px; background:#000; border-radius:var(--radius-md); overflow:hidden; position:relative; aspect-ratio:16/9;">
+              <video id="camera-video" style="width:100%; height:100%; object-fit:cover;" playsinline muted></video>
+              <div style="position:absolute; inset:20px; border:2px dashed var(--mc-cyan); border-radius:12px; pointer-events:none; display:flex; align-items:center; justify-content:center;">
+                <span id="camera-guide-text" style="background:rgba(0,0,0,0.7); padding:6px 14px; border-radius:20px; font-size:12px; color:#fff;">Pointez le badge</span>
+              </div>
+            </div>
+
+            <!-- CONTRÔLES CAPTURE CARTE DE VISITE -->
+            <div id="card-snap-controls" style="display:none; gap:10px; margin-bottom:16px; align-items:center;">
+              <button type="button" class="btn-primary-sm" id="btn-snap-card">📷 Prendre la photo de la carte</button>
+              <img id="card-photo-preview" style="display:none; height:46px; border-radius:8px; border:1px solid var(--mc-cyan);">
+            </div>
+
+            <form id="quick-lead-form">
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Nom & Prénom</label>
+                  <input type="text" id="lead-name" class="form-input" placeholder="ex: Jean Dupont" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Société / Agence</label>
+                  <input type="text" id="lead-company" class="form-input" placeholder="ex: Agence Event PACA" required autocomplete="off">
+                </div>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Email</label>
+                  <input type="email" id="lead-email" class="form-input" placeholder="contact@agence.fr" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Téléphone</label>
+                  <input type="tel" id="lead-phone" class="form-input" placeholder="06 00 00 00 00" autocomplete="off">
+                </div>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Type d'Événement</label>
+                  <select id="lead-event-type" class="form-input">
+                    <option value="Séminaire & Plénière">Séminaire & Plénière d'Entreprise</option>
+                    <option value="Soirée de Gala">Soirée de Gala & Cocktail</option>
+                    <option value="Congrès & Convention">Congrès & Convention</option>
+                    <option value="Festival & Concert">Festival & Grand Concert</option>
+                    <option value="Stand & Salon">Stand & Animation Commerciale</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Date Prévisionnelle</label>
+                  <input type="date" id="lead-date" class="form-input">
+                </div>
+              </div>
+
+              <!-- TAGS DES BESOINS TECHNIQUES -->
+              <div class="form-group">
+                <label class="form-label">Besoins Spécifiques (Cliquer pour cocher)</label>
+                <div class="tag-selector">
+                  <span class="tag-btn">Sonorisation L-Acoustics</span>
+                  <span class="tag-btn">Éclairage & Lyres Robe</span>
+                  <span class="tag-btn">Écran LED Incurvé P2.6</span>
+                  <span class="tag-btn">Régie Vidéo Multi-Cam</span>
+                  <span class="tag-btn">Scénographie & Déco</span>
+                  <span class="tag-btn">Mobilier Lounge / Mange-debout</span>
+                  <span class="tag-btn">Streaming Live</span>
+                  <span class="tag-btn">Interactivité Mur LED</span>
+                </div>
+              </div>
+
+              <!-- TEMPÉRATURE DU LEAD -->
+              <div class="form-group">
+                <label class="form-label">Potentiel du Contact</label>
+                <div class="temp-selector">
+                  <button type="button" class="temp-btn hot active" data-temp="hot">🔥 Chaud (Projet immédiat)</button>
+                  <button type="button" class="temp-btn warm" data-temp="warm">⚡ Tiède (Horizon 6 mois)</button>
+                  <button type="button" class="temp-btn cool" data-temp="cool">❄️ Veille / Catalogue</button>
+                </div>
+              </div>
+
+              <!-- NOTES EXPRESS -->
+              <div class="form-group">
+                <label class="form-label">Notes & Contexte Rapide</label>
+                <textarea id="lead-notes" class="form-input" rows="2" placeholder="Détails du projet, lieu prévu, attentes particulières..."></textarea>
+              </div>
+
+              <!-- ACTIONS -->
+              <div class="form-actions">
+                <button type="submit" class="btn-submit">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
+                  Enregistrer Contact
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- COLONNE DROITE : HISTORIQUE DES LEADS EN DIRECT -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--mc-cyan)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                Contacts du Stand
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button class="filter-chip active" id="filter-all-leads" style="padding:4px 10px; font-size:11px;">Tous</button>
+                <button class="filter-chip" id="filter-my-leads" style="padding:4px 10px; font-size:11px;">Mes Contacts</button>
+              </div>
+            </div>
+
+            <div class="leads-list" id="leads-container"></div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- VUE 2 : RÉGIE ÉCRAN GÉANT MUR LED & NUAGE DE MOTS -->
+      <section id="view-screencenter" class="view-section">
+        <div class="screen-ctrl-grid">
+          
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--mc-red)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+                Retour Écran LED Stand (Live 4x2m)
+              </div>
+              <button class="btn-primary-sm" onclick="window.open('./display.html', '_blank')">Plein Écran Mur LED</button>
+            </div>
+
+            <div class="screen-preview-box">
+              <span class="screen-live-tag">ON AIR • STAND MEDIACOM</span>
+              <iframe src="./display.html" style="width:100%; height:100%; border:none; pointer-events:none;"></iframe>
+            </div>
+
+            <div style="margin-top:20px; display:flex; gap:10px;">
+              <button class="btn-primary-sm" onclick="window.open('./nuage.html', '_blank')">📲 Tester l'envoi mobile visiteur (nuage.html)</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Fonctionnement du Mur LED Stand</div>
+            </div>
+
+            <p style="font-size:13px; color:var(--text-muted); line-height:1.6; margin-bottom:16px;">
+              1. L'écran géant 4x2m diffuse en boucle <strong>le nuage de mots animé</strong> et affiche le <strong>vrai QR Code officiel</strong>.<br>
+              2. Chaque visiteur qui flashe avec son smartphone arrive directement sur la page d'envoi.<br>
+              3. Les visiteurs peuvent envoyer des mots <strong>en illimité</strong>.<br>
+              4. Vous pouvez projeter `display.html` sur le grand écran sans impacter votre tablette.
+            </p>
+
+            <button class="btn-action btn-submit" onclick="window.open('./master.html', '_blank')" style="background:#192538; border:1px solid var(--mc-cyan); color:var(--mc-cyan);">
+              👑 Ouvrir la console Master iPhone (Mazen)
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- VUE 3 : BOOK & ESTIMATEUR DE BUDGET EXPRESS -->
+      <section id="view-showcase" class="view-section">
+        
+        <!-- ESTIMATEUR EXPRESS VENDEUR POUR PITCHER LES AGENCES -->
+        <div class="card" style="margin-bottom:24px; border:1px solid var(--border-active); background:linear-gradient(135deg, rgba(0,119,253,0.1), rgba(0,0,0,0.6));">
+          <div class="card-header">
+            <div class="card-title">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--mc-cyan)"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+              Calculateur d'Estimation Express (Devant le Client)
+            </div>
+            <span style="font-size:12px; color:var(--mc-cyan); font-weight:700;">Chiffrage en 10 secondes</span>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:16px;">
+            <div>
+              <label class="form-label">Jauge Participants :</label>
+              <select id="est-pax" class="form-input">
+                <option value="100">100 personnes</option>
+                <option value="200" selected>200 à 300 personnes</option>
+                <option value="500">500 personnes</option>
+                <option value="1000">1000+ personnes</option>
+              </select>
+            </div>
+            <div style="display:flex; flex-direction:column; justify-content:center; gap:6px;">
+              <label style="font-size:12px; color:#fff; display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" id="est-opt-led" checked> Mur LED Incurvé P2.6
+              </label>
+              <label style="font-size:12px; color:#fff; display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" id="est-opt-sound" checked> Sonorisation L-Acoustics
+              </label>
+            </div>
+            <div style="display:flex; flex-direction:column; justify-content:center; gap:6px;">
+              <label style="font-size:12px; color:#fff; display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" id="est-opt-light" checked> Show Lyres Robe & Éclairage
+              </label>
+              <label style="font-size:12px; color:#fff; display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" id="est-opt-stream"> Régie Vidéo & Streaming 4K
+              </label>
+            </div>
+            <div style="display:flex; flex-direction:column; justify-content:center;">
+              <button class="btn-primary-sm" id="btn-calc-estimate" style="height:44px; font-size:14px; justify-content:center;">Calculer Fourchette</button>
+            </div>
+          </div>
+
+          <div style="background:rgba(0,0,0,0.5); padding:14px 20px; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:13px; color:#9ab0cc;">Budget indicatif prestation technique clé-en-main :</span>
+            <span id="est-result-val" style="font-size:22px; font-weight:900; color:var(--mc-cyan);">6 900 € - 9 300 € HT</span>
+          </div>
+        </div>
+
+        <div class="showcase-filters">
+          <button class="filter-chip active" data-cat="all">Tous nos Univers</button>
+          <button class="filter-chip" data-cat="corporate">Séminaires & Plénières</button>
+          <button class="filter-chip" data-cat="gala">Soirées de Gala</button>
+          <button class="filter-chip" data-cat="congres">Congrès & Salons</button>
+          <button class="filter-chip" data-cat="festival">Festivals & Concerts</button>
+          <button class="filter-chip" data-cat="furniture">Mobilier & Scéno</button>
+          <button class="filter-chip" data-cat="stand">Packs Salon</button>
+        </div>
+
+        <div class="showcase-grid" id="showcase-cards-grid"></div>
+      </section>
+
+      <!-- VUE 4 : CONFIGURATEUR 3D DU PLATEAU SÉMINAIRE -->
+      <section id="view-simulator3d" class="view-section">
+        <div class="card" style="padding:16px;">
+          <div class="card-header" style="margin-bottom:12px;">
+            <div class="card-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--mc-blue)"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              Configurateur 3D Scénographique (Toucher / Glisser pour pivoter à 360°)
+            </div>
+            
+            <!-- CONTRÔLES AMBIANCE & MOBILIER -->
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn-primary-sm" onclick="window.viewerInstance?.toggleCurve()">Mur Incurvé / Plat</button>
+              <button class="btn-primary-sm" style="background:#161c28;" onclick="window.viewerInstance?.toggleLights()">Animer Faisceaux</button>
+            </div>
+          </div>
+
+          <!-- BARRE DE CHOIX D'AMBIANCE LUMINEUSE SCÉNIQUE -->
+          <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center;">
+            <span style="font-size:12px; color:#8fa3bf; font-weight:700;">Ambiance Lumière :</span>
+            <button class="filter-chip" style="background:#003380; color:#fff;" onclick="window.viewerInstance?.setTheme('blue')">Bleu Corporate</button>
+            <button class="filter-chip" style="background:#664400; color:#ffb300;" onclick="window.viewerInstance?.setTheme('gold')">Or Gala</button>
+            <button class="filter-chip" style="background:#4a0066; color:#ff4081;" onclick="window.viewerInstance?.setTheme('purple')">Violet Show</button>
+            <button class="filter-chip" style="background:#334155; color:#fff;" onclick="window.viewerInstance?.setTheme('white')">Blanc 5600K</button>
+
+            <span style="font-size:12px; color:#8fa3bf; font-weight:700; margin-left:14px;">Mobilier :</span>
+            <button class="filter-chip" onclick="window.viewerInstance?.setFurniture('plenary')">Plénière (Pupitre/VIP)</button>
+            <button class="filter-chip" onclick="window.viewerInstance?.setFurniture('lounge')">Mange-debout</button>
+          </div>
+
+          <div class="viewer3d-container">
+            <canvas id="canvas3d"></canvas>
+            <div class="viewer-overlay">
+              <span class="spec-badge" style="background:rgba(0,119,253,0.3); color:#fff; font-size:11px;">Scène Podium 4x2m</span>
+              <span class="spec-badge" style="background:rgba(0,229,255,0.3); color:#fff; font-size:11px;">Écran LED P2.6</span>
+              <span class="spec-badge" style="background:rgba(255,179,0,0.3); color:#fff; font-size:11px;">4x Lyres Robe Asservies</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VUE 5 : CALCULATEUR ÉLECTRIQUE STAND (SUPERVISION NOLAN) -->
+      <section id="view-powercalc" class="view-section">
+        <div class="power-calc-grid">
+          
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Supervision des 2 Prises PC16A (7200W Max)</div>
+              <span style="font-size:11px; color:var(--mc-cyan); font-weight:700;">Sécurité Stand Salon</span>
+            </div>
+
+            <div class="gauge-panel">
+              <div class="power-gauge">
+                <div class="gauge-header">
+                  <span>LIGNE 1 (PC 16A - 230V) : Écran LED & Vidéo</span>
+                  <span id="line1-amps" style="color:var(--mc-cyan);">0 A</span>
+                </div>
+                <div class="gauge-bar-track">
+                  <div class="gauge-bar-fill" id="line1-fill"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim);">
+                  <span id="line1-val">0 W</span>
+                  <span>Disjoncteur : 3 600 W (16A)</span>
+                </div>
+                <div id="line1-items-list" style="margin-top:10px;"></div>
+              </div>
+
+              <div class="power-gauge">
+                <div class="gauge-header">
+                  <span>LIGNE 2 (PC 16A - 230V) : Éclairage & Audio</span>
+                  <span id="line2-amps" style="color:var(--mc-cyan);">0 A</span>
+                </div>
+                <div class="gauge-bar-track">
+                  <div class="gauge-bar-fill" id="line2-fill"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim);">
+                  <span id="line2-val">0 W</span>
+                  <span>Disjoncteur : 3 600 W (16A)</span>
+                </div>
+                <div id="line2-items-list" style="margin-top:10px;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Ajouter un Appareil / Charge</div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Nom du Matériel</label>
+              <input type="text" id="power-item-name" class="form-input" placeholder="ex: 1x Lyre Spot 900W, Machine à café...">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Puissance en Watts</label>
+              <input type="number" id="power-item-watts" class="form-input" placeholder="900" value="900">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Assigner à la ligne</label>
+              <select id="power-item-line" class="form-input">
+                <option value="line1">Ligne 1 (Écran / Vidéo)</option>
+                <option value="line2">Ligne 2 (Éclairage / Son)</option>
+              </select>
+            </div>
+            <button class="btn-submit" id="btn-add-power-item">Ajouter à la Ligne & Recalculer</button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- VUE 6 : PASS CONTACT VISITEUR & VRAI QR CODE -->
+      <section id="view-connect" class="view-section">
+        <div class="card" style="max-width: 600px; margin: 0 auto; text-align: center;">
+          <div class="brand-title" style="justify-content: center; font-size: 26px; margin-bottom: 6px;">MEDIA<span>COM</span></div>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px;">Faites flasher ce QR code à votre prospect pour qu'il ouvre immédiatement la fiche officielle Médiacom avec les coordonnées d'Éric.</p>
+
+          <div style="background: white; padding: 20px; border-radius: 22px; display: inline-block; box-shadow: 0 0 40px rgba(0,119,253,0.35);">
+            <div id="mediacom-vcard-qr-box"></div>
+          </div>
+
+          <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-size: 17px; font-weight: 800; color: #fff;">Direction Générale : Éric</div>
+            <div style="font-size: 14px; color: var(--mc-cyan); font-weight:700;">Tél : 04 91 35 55 55 • 04 88 80 13 77</div>
+            <div style="font-size: 13px; color: var(--text-muted);">Email : contact@mediacom.org • www.mediacom.org</div>
+          </div>
+
+          <div style="margin-top: 22px; display: flex; gap: 10px; justify-content: center;">
+            <button class="btn-primary-sm" onclick="downloadVCard()">📲 Télécharger Fiche vCard</button>
+            <button class="btn-primary-sm" style="background:#162238;" onclick="window.open('./contact.html', '_blank')">🌐 Tester la Page Contact</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODALE : CHANGEMENT DE SESSION OPÉRATEUR -->
+  <div class="modal-backdrop" id="operator-modal">
+    <div class="modal-dialog">
+      <div class="card-header">
+        <div class="card-title">Choisir votre Session Tablette</div>
+        <button onclick="closeModal('operator-modal')" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">Sélectionnez votre profil :</p>
+      
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="operator-card" onclick="setOperator('mazen')">
+          <div class="operator-info">
+            <div class="avatar-circle" style="background:linear-gradient(135deg, #0077fd, #002b66);">M</div>
+            <div class="operator-details">
+              <div class="op-name">Mazen</div>
+              <div class="op-role">Business Developer</div>
+            </div>
+          </div>
+        </div>
+        <div class="operator-card" onclick="setOperator('coraline')">
+          <div class="operator-info">
+            <div class="avatar-circle" style="background:linear-gradient(135deg, #00e5ff, #004d66);">C</div>
+            <div class="operator-details">
+              <div class="op-name">Coraline</div>
+              <div class="op-role">Chargée de Développement Commercial</div>
+            </div>
+          </div>
+        </div>
+        <div class="operator-card" onclick="setOperator('nolan')">
+          <div class="operator-info">
+            <div class="avatar-circle" style="background:linear-gradient(135deg, #ffb300, #664400);">N</div>
+            <div class="operator-details">
+              <div class="op-name">Nolan</div>
+              <div class="op-role">Directeur Technique</div>
+            </div>
+          </div>
+        </div>
+        <div class="operator-card" onclick="setOperator('eric')">
+          <div class="operator-info">
+            <div class="avatar-circle" style="background:linear-gradient(135deg, #ff3366, #66001a);">E</div>
+            <div class="operator-details">
+              <div class="op-name">Éric</div>
+              <div class="op-role">Directeur Général</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE : FICHE DÉTAILLÉE DU LEAD -->
+  <div class="modal-backdrop" id="lead-detail-modal">
+    <div class="modal-dialog" style="max-width: 600px;">
+      <div class="card-header" style="margin-bottom:14px;">
+        <div class="card-title">Fiche Prospect & Suivi</div>
+        <button onclick="closeModal('lead-detail-modal')" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <div id="lead-detail-body"></div>
+    </div>
+  </div>
+
+  <!-- MODALE : AIRDROP VISUEL PAR VRAI QR CODE -->
+  <div class="modal-backdrop" id="airdrop-qr-modal">
+    <div class="modal-dialog" style="text-align: center;">
+      <div class="card-header" style="margin-bottom:12px;">
+        <div class="card-title">📲 Transfert de Lead Hors-Ligne</div>
+        <button onclick="closeModal('airdrop-qr-modal')" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
+        Votre collègue approche sa tablette en mode "Scan Badge/QR" pour importer immédiatement cette fiche sans aucune connexion internet :
+      </p>
+      <div style="font-weight:700; color:var(--mc-cyan); margin-bottom:14px;" id="airdrop-lead-name"></div>
+      
+      <div style="background:white; padding:16px; border-radius:20px; display:inline-block; box-shadow:0 0 35px rgba(0,119,253,0.35);">
+        <div id="airdrop-qr-box"></div>
+      </div>
+
+      <div style="margin-top:16px; font-size:12px; color:var(--text-dim);">
+        Fonctionne 100% hors-ligne de tablette à tablette
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE : TRANSFERT DIRECT À UN COLLÈGUE -->
+  <div class="modal-backdrop" id="transfer-modal">
+    <div class="modal-dialog">
+      <div class="card-header">
+        <div class="card-title">Transférer ce prospect</div>
+        <button onclick="closeModal('transfer-modal')" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">La tablette de votre collègue émettra un carillon sonore et affichera une alerte visuelle :</p>
+
+      <div class="form-group">
+        <label class="form-label">Note interne pour le collègue</label>
+        <input type="text" id="transfer-custom-note" class="form-input" placeholder="ex: Cherche prestataire plénière 500 pax en juin, prends le relais !">
+      </div>
+
+      <div style="font-size:12px; font-weight:700; color:var(--text-dim); margin-bottom:10px; text-transform:uppercase;">Transférer à :</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <button class="btn-submit" style="background:#192233;" onclick="confirmTransfer('mazen')">👤 Mazen (BizDev)</button>
+        <button class="btn-submit" style="background:#192233;" onclick="confirmTransfer('coraline')">👤 Coraline (Commercial)</button>
+        <button class="btn-submit" style="background:#192233;" onclick="confirmTransfer('nolan')">👤 Nolan (Technique)</button>
+        <button class="btn-submit" style="background:#192233;" onclick="confirmTransfer('eric')">👤 Éric (Direction)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST ALERTE DE TRANSFERT ENTRANT (POPUP AUDIO/VISUELLE) -->
+  <div class="toast-transfer" id="toast-transfer">
+    <div class="toast-pulse-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+    </div>
+    <div id="toast-transfer-msg" style="font-size:13px; line-height:1.4;"></div>
+  </div>
+
+  <script src="./scene3d.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

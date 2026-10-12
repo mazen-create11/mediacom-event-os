@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Participez avec Mediacom !</title>
+  <style>
+    :root {
+      --mc-blue: #0077fd;
+      --mc-cyan: #00e5ff;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: #0a0c10;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 18px;
+    }
+    .card {
+      background: rgba(18, 24, 34, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 24px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+    }
+    .brand {
+      font-size: 24px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .brand span { color: var(--mc-blue); }
+    .subtitle {
+      font-size: 12px;
+      color: var(--mc-cyan);
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #8e9bb0;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      background: #141923;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 14px;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--mc-blue);
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--mc-blue), #0056bd);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+      box-shadow: 0 4px 15px rgba(0, 119, 253, 0.4);
+    }
+    .success-box {
+      display: none;
+      background: rgba(0, 230, 118, 0.15);
+      border: 1px solid #00e676;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      margin-top: 16px;
+      font-size: 14px;
+      color: #00e676;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="brand">MEDIA<span>COM</span></div>
+    <div class="subtitle">Interagissez avec le Mur LED du Stand</div>
+
+    <form id="client-form">
+      <div class="form-group">
+        <label>Votre mot clé ou idée pour le nuage de mots :</label>
+        <input type="text" id="client-word" placeholder="ex: Grandeur, Émotion, Séminaire..." required>
+      </div>
+
+      <div style="border-top: 1px solid rgba(255,255,255,0.08); margin: 16px 0; padding-top: 12px;">
+        <span style="font-size:12px; color:var(--mc-cyan); font-weight:700;">Recevoir le book & être recontacté (optionnel) :</span>
+      </div>
+
+      <div class="form-group">
+        <label>Votre Nom</label>
+        <input type="text" id="client-name" placeholder="Prénom & Nom">
+      </div>
+      <div class="form-group">
+        <label>Entreprise / Agence</label>
+        <input type="text" id="client-company" placeholder="Nom de l'agence">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="client-email" placeholder="contact@agence.fr">
+      </div>
+
+      <button type="submit" class="btn">🚀 Envoyer sur l'écran en direct</button>
+    </form>
+
+    <div class="success-box" id="success-box">
+      🎉 Bravo ! Votre mot apparaît en direct sur le mur LED de notre stand ! Passez échanger avec notre équipe technique.
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('client-form');
+    const successBox = document.getElementById('success-box');
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const word = document.getElementById('client-word').value.trim();
+      const name = document.getElementById('client-name').value.trim();
+      const company = document.getElementById('client-company').value.trim();
+      const email = document.getElementById('client-email').value.trim();
+
+      if ('BroadcastChannel' in window) {
+        const channel = new BroadcastChannel('mediacom_stand_sync');
+        channel.postMessage({
+          type: 'WORD_CLOUD_ADD',
+          word: word
+        });
+
+        if (name || company || email) {
+          channel.postMessage({
+            type: 'NEW_LEAD',
+            lead: {
+              id: 'lead-scan-' + Date.now(),
+              name: name || 'Participant Salon',
+              company: company || 'Visiteur Stand',
+              email: email || '',
+              phone: '',
+              eventType: 'Interaction Mur LED',
+              date: '',
+              budget: '',
+              needs: ['Animation Interactive'],
+              temperature: 'warm',
+              operator: 'Scan Borne',
+              notes: `Mot envoyé : "${word}"`,
+              timestamp: new Date().toISOString()
+            }
+          });
+        }
+      }
+
+      form.style.display = 'none';
+      successBox.style.display = 'block';
+    });
+  </script>
+</body>
+</html>
