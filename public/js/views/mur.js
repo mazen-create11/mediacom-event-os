@@ -22,7 +22,7 @@ function mount(root, c) {
     <article class="module span-8 md-8" style="--i:0">
       <header class="mod-head"><span class="n">01</span><span class="t">Sortie mur LED · 4 × 2 m</span><span class="r" id="mw-state"></span></header>
       <div class="mod-body">
-        <div class="wall-wrap"><div class="wall-preview" id="mw-preview"><iframe src="/mur.html?preview=1" title="Aperçu du mur LED" tabindex="-1"></iframe></div>
+        <div class="wall-wrap"><div class="wall-preview" id="mw-preview"><iframe src="/mur?preview=1" title="Aperçu du mur LED" tabindex="-1"></iframe></div>
           <button class="btn btn-quiet btn-sm wall-full-btn" id="mw-full">${icon('expand')}Plein écran</button></div>
         <div class="scene-keys mt-3" id="mw-scenes" role="radiogroup" aria-label="Scène affichée" style="grid-template-columns:repeat(5,minmax(0,1fr))">
           ${SCENES.map((s) => `<button class="key" role="radio" data-scene="${s.id}">${icon(s.icon)}<span>${s.label}</span></button>`).join('')}
@@ -147,7 +147,7 @@ function update(reason) {
 // Sortie du mur en plein écran sur la tablette (pour la montrer à un client sans quitter l'app)
 function fullPreview() {
   const host = $('#show');
-  host.innerHTML = `<div class="wall-full"><iframe src="/mur.html?preview=1" title="Mur LED plein écran"></iframe></div>
+  host.innerHTML = `<div class="wall-full"><iframe src="/mur?preview=1" title="Mur LED plein écran"></iframe></div>
     <button class="btn btn-quiet btn-icon" style="position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;z-index:2" aria-label="Fermer">${icon('x')}</button>`;
   host.classList.add('is-open');
   host.requestFullscreen?.().catch(() => {});

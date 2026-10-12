@@ -142,7 +142,7 @@ hub.on('change', (reason) => { refreshAll(reason); if (['hello', 'words', 'wall'
 // Aperçus du mur (iframes) : nourris par l'app, sans flux réseau supplémentaire
 const wallData = () => ({ type: 'mc-wall', wall: hub.state.wall, words: hub.state.words.filter((w) => !w.hidden), eventName: hub.state.settings?.eventName });
 function feedPreviews(extra) {
-  for (const f of document.querySelectorAll('iframe[src^="/mur.html"]')) f.contentWindow?.postMessage({ ...wallData(), ...extra }, location.origin);
+  for (const f of document.querySelectorAll('iframe[src^="/mur"]')) f.contentWindow?.postMessage({ ...wallData(), ...extra }, location.origin);
 }
 addEventListener('message', (e) => {
   if (e.origin === location.origin && e.data?.type === 'mc-wall-ready') e.source?.postMessage(wallData(), location.origin);

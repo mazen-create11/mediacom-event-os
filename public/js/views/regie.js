@@ -104,7 +104,7 @@ function mount(root, c) {
 
   // Aperçu en direct du mur (mise à l'échelle de l'iframe 1600 × 800)
   const wall = $('#rg-wall', el);
-  wall.innerHTML = `<iframe src="/mur.html?preview=1" title="Aperçu du mur LED" loading="lazy" tabindex="-1"></iframe>`;
+  wall.innerHTML = `<iframe src="/mur?preview=1" title="Aperçu du mur LED" loading="lazy" tabindex="-1"></iframe>`;
   const fit = () => { const f = wall.querySelector('iframe'); f.style.transform = `scale(${wall.clientWidth / 1600})`; };
   new ResizeObserver(fit).observe(wall);
 
