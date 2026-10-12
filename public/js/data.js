@@ -25,7 +25,7 @@ export const PROOFS = [
 ];
 
 export const OPERATORS = [
-  { id: 'mazen', name: 'Mazen', role: 'Développement commercial' },
+  { id: 'mazen', name: 'Mazen', role: 'Business Developer' },
   { id: 'coraline', name: 'Coraline', role: 'Chargée de projets' },
   { id: 'nolan', name: 'Nolan', role: 'Direction technique' },
   { id: 'eric', name: 'Éric', role: 'Direction' },
