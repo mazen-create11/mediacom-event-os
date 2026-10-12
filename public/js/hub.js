@@ -49,11 +49,13 @@ export function deviceId() {
   return id;
 }
 
-// 'hub' : le hub répond ; 'down' : rien ne répond (hub éteint, Wi-Fi coupé) ; 'none' : site statique sans hub
+// 'hub' : le hub du stand répond ; 'cloud' : démo en ligne (mots et mur partagés, contacts locaux) ;
+// 'down' : rien ne répond (hub éteint, Wi-Fi coupé) ; 'none' : site statique sans serveur
 export async function hubKind() {
   try {
     const r = await fetch('/api/health', { cache: 'no-store' });
     const d = await r.json().catch(() => null);
+    if (d?.cloud) return 'cloud';
     return d && typeof d.ok === 'boolean' ? 'hub' : 'none';
   } catch {
     return 'down';
@@ -177,8 +179,9 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
   }
 
   // N'échoue jamais : un envoi impossible part en file d'attente, un refus est signalé
+  const CLOUD_API = /^\/api\/(words|wall)/;
   async function send(method, url, body, key) {
-    if (state.mode === 'local') return null;
+    if (state.mode === 'local' || (state.mode === 'cloud' && !CLOUD_API.test(url))) return null;
     const job = { method, url, body, key, at: Date.now() };
     if (!loaded || outbox.length || state.status !== 'online') { enqueue(job); flush(); return null; }
     try {
@@ -235,11 +238,14 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
   let probed = false;
   function connect() {
     if (state.mode === 'local') { setStatus('local'); return; }
+    if (state.mode === 'cloud') { pollCloud(); return; }
     // Page servie sans hub (lien de démonstration) : bascule en mode local. Un hub éteint, lui, reste « hors ligne ».
     if (!probed) {
       probed = true;
       hubKind().then((k) => {
-        if (k === 'none') { state.mode = 'local'; setStatus('local'); emit('change', 'hello'); } else connect();
+        if (k === 'none') { state.mode = 'local'; setStatus('local'); emit('change', 'hello'); }
+        else if (k === 'cloud') { state.mode = 'cloud'; setStatus('online'); emit('change', 'hello'); pollCloud(); }
+        else connect();
       });
       return;
     }
@@ -293,6 +299,30 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
     };
   }
 
+  /* ---------- Démo en ligne : mots et état du mur relus toutes les 2,5 s ---------- */
+  let cloudTimer = 0, lastWordAt = 0, wallPending = 0;
+  async function pollCloud() {
+    clearTimeout(cloudTimer);
+    if (state.mode !== 'cloud') return;
+    if (!document.hidden) {
+      try {
+        const d = await api('GET', '/api/wall/state?all=1', null, 6000);
+        state.serverOffset = d.serverTime - Date.now();
+        const fresh = d.words.filter((w) => w.at > lastWordAt && !w.hidden);
+        const first = !lastWordAt;
+        lastWordAt = Math.max(lastWordAt, ...d.words.map((w) => w.at), 1);
+        if (JSON.stringify(d.words) !== JSON.stringify(state.words)) { state.words = d.words; changed('words'); }
+        if (!first) fresh.forEach((w) => emit('word', w));
+        if (Date.now() > wallPending && (d.wall.updatedAt || 0) !== (state.wall.updatedAt || 0)) { state.wall = d.wall; changed('wall'); }
+        setStatus('online');
+      } catch {
+        setStatus('offline');
+      }
+    }
+    cloudTimer = setTimeout(pollCloud, 2500);
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && state.mode === 'cloud') pollCloud(); });
+
   setInterval(() => {
     if (state.mode === 'hub' && state.status === 'online' && Date.now() - lastMsg > 40000) connect();
     if (state.status === 'online') flush();
@@ -305,12 +335,12 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
   /* ---------- Mode local (sans hub) : synchro entre onglets ---------- */
 
   function localBroadcast(type, data) {
-    if (state.mode !== 'local') return;
+    if (state.mode === 'hub') return;
     persistNow();
     bc?.postMessage({ type, data, from: deviceId() });
   }
   if (bc) bc.onmessage = ({ data: msg }) => {
-    if (state.mode !== 'local' || msg.from === deviceId()) return;
+    if (state.mode === 'hub' || msg.from === deviceId()) return;
     const c = load(CACHE_KEY, {});
     Object.assign(state, { leads: c.leads || [], words: c.words || [], wall: c.wall || state.wall, settings: c.settings || state.settings, tarifs: c.tarifs ?? state.tarifs });
     emit('change', msg.type);
@@ -360,7 +390,7 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
       Object.assign(lead, { operator: to, transfer: t, updatedAt: now() });
       lead.history = [...(lead.history || []), { type: 'transfer', ...t }];
       changed('lead');
-      if (state.mode === 'local') { localBroadcast('transfer', { lead, ...t }); return; }
+      if (state.mode !== 'hub') { localBroadcast('transfer', { lead, ...t }); return; }
       return send('POST', '/api/transfer', { leadId, from, to, note });
     },
 
@@ -371,6 +401,11 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
     },
 
     async sendWord(text) {
+      if (state.mode === 'cloud') {
+        const w = (await api('POST', '/api/words', { text })).word;
+        pollCloud();
+        return w;
+      }
       if (state.mode === 'local') {
         const key = text.toLowerCase();
         let w = state.words.find((x) => x.key === key);
@@ -396,6 +431,7 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
 
     setWall(patch) {
       Object.assign(state.wall, patch, { updatedAt: now() });
+      wallPending = Date.now() + 4000; // la relecture ne doit pas remettre l'ancien état pendant l'envoi
       changed('wall'); localBroadcast('wall');
       return send('PUT', '/api/wall', patch);
     },
@@ -414,7 +450,7 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
 
     alert(from, text, to = 'all') {
       const a = { from, text, to, at: now() };
-      if (state.mode === 'local') { localBroadcast('alert', a); return; }
+      if (state.mode !== 'hub') { localBroadcast('alert', a); return; }
       return send('POST', '/api/alert', a);
     },
 
@@ -432,7 +468,7 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
 
 export function wallFeed(onData) {
   if (!location.protocol.startsWith('http')) return localWall(onData);
-  hubKind().then((k) => (k === 'none' ? localWall(onData) : hubWall(onData)));
+  hubKind().then((k) => (k === 'none' ? localWall(onData) : k === 'cloud' ? cloudWall(onData) : hubWall(onData)));
   return { mode: 'auto' };
 }
 
@@ -443,6 +479,23 @@ function localWall(onData) {
     if ('BroadcastChannel' in window) new BroadcastChannel(BC_NAME).onmessage = ({ data }) => { read(); if (data.type === 'word' && !data.data?.hidden) onData({ word: data.data }); };
     return { mode: 'local' };
   }
+}
+
+function cloudWall(onData) {
+  let last = 0;
+  const tick = async () => {
+    try {
+      const d = await (await fetch('/api/wall/state', { cache: 'no-store' })).json();
+      const fresh = d.words.filter((w) => w.at > last);
+      const first = !last;
+      last = Math.max(last, ...d.words.map((w) => w.at), 1);
+      onData({ wall: d.wall, words: d.words });
+      if (!first) fresh.sort((a, b) => a.at - b.at).forEach((w) => onData({ word: w }));
+    } catch { /* réseau : on réessaie */ }
+    setTimeout(tick, document.hidden ? 10000 : 2000);
+  };
+  tick();
+  return { mode: 'cloud' };
 }
 
 function hubWall(onData) {

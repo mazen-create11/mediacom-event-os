@@ -139,7 +139,7 @@ function renderPair(show = false) {
 }
 
 async function loadInfo() {
-  if (ctx.hub.state.mode === 'local') { $('#ps-pair', el).innerHTML = '<p class="dim" style="font-size:12px;padding:8px;color:#333">Hub non lancé</p>'; return; }
+  if (ctx.hub.state.mode !== 'hub') { $('#ps-pair', el).innerHTML = `<p style="font-size:12px;padding:8px;color:#333">${ctx.hub.state.mode === 'cloud' ? 'Démo en ligne : pas d’appairage' : 'Hub non lancé'}</p>`; return; }
   try {
     info = await (await fetch(withToken('/api/info'), { cache: 'no-store' })).json();
     renderPair();

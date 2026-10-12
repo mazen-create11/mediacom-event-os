@@ -91,7 +91,7 @@ function mount(root, c) {
   $('#ct-opfilter', el).addEventListener('click', (e) => { if (e.target.closest('[data-clear-op]')) { ui.op = null; renderList(); } });
   $('#ct-list', el).addEventListener('click', (e) => { const r = e.target.closest('[data-lead]'); if (r) select(r.dataset.lead); });
   $('#ct-export', el).addEventListener('click', (e) => {
-    if (ctx.hub.state.mode === 'local' || ctx.hub.state.status !== 'online') { e.preventDefault(); exportLocal(); }
+    if (ctx.hub.state.mode !== 'hub' || ctx.hub.state.status !== 'online') { e.preventDefault(); exportLocal(); }
   });
   $('#ct-demo-clear', el).addEventListener('click', async () => {
     if (!(await confirmSheet({ title: 'Retirer les contacts de démo ?', text: 'Seuls les contacts marqués « démo » sont supprimés. Les vrais contacts restent.', ok: 'Retirer', danger: true }))) return;

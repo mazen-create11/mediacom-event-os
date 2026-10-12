@@ -1,0 +1,10 @@
+# Démo en ligne (Cloudflare Pages) : le mur et la page visiteur partagent les mots via D1.
+# Les contacts ne quittent jamais l'appareil dans cette version publique.
+name = "mediacom-event-os"
+pages_build_output_dir = "public"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mediacom-event-os-demo"
+database_id = "753489c4-6356-49e3-a996-23a97546c1ba"
