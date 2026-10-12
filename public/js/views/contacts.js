@@ -1,4 +1,4 @@
-import { OPERATORS, TEMPS, opById, initial } from '../data.js';
+import { OPERATORS, TEMPS, opById, initial, isAgency } from '../data.js';
 import { withToken } from '../hub.js';
 import { icon, esc, $, $$, ago, hhmm, toast, sheet, closeSheet, openDrawer, closeDrawer, confirmSheet, qrSVG, vcard, download, LOGO_M } from '../ui.js';
 
@@ -23,7 +23,8 @@ export function leadRow(l, c) {
   const me = c.me().id;
   const op = opById(l.operator);
   const flag = l.transfer && !l.transfer.ack && l.transfer.to === me ? '<span class="flag">Transmis</span>' : '';
-  const tags = [l.eventType && `<span class="tag">${esc(l.eventType)}</span>`, ...(l.needs || []).slice(0, 2).map((n) => `<span class="tag blue">${esc(n)}</span>`),
+  const short = { 'Agence événementielle': 'Agence', 'Agence séminaire / DMC': 'Agence · DMC', 'Lieu / hôtel': 'Lieu' }[l.profile] || l.profile;
+  const tags = [short && `<span class="tag ${isAgency(l) ? 'agency' : ''}">${esc(short)}</span>`, l.eventType && `<span class="tag">${esc(l.eventType)}</span>`, ...(l.needs || []).slice(0, 2).map((n) => `<span class="tag blue">${esc(n)}</span>`),
     (l.needs || []).length > 2 && `<span class="tag">+${l.needs.length - 2}</span>`, l.demo && '<span class="tag">démo</span>'].filter(Boolean).join('');
   return `<button class="lead-row ${ui.selected === l.id ? 'is-sel' : ''}${freshAttr(l.id)}" data-lead="${l.id}" aria-label="${esc(l.name || 'Contact')}${l.company ? ', ' + esc(l.company) : ''}">
     <span class="led" data-s="${TEMP_S[l.temperature] || 'cold'}" title="${TEMPS[l.temperature]?.label || ''}"></span>
@@ -39,6 +40,7 @@ function filtered() {
   return ctx.hub.state.leads.filter((l) => {
     if (ui.filter === 'mine' && l.operator !== me) return false;
     if (ui.filter === 'hot' && l.temperature !== 'hot') return false;
+    if (ui.filter === 'agency' && !isAgency(l)) return false;
     if (ui.filter === 'in' && !(l.transfer && l.transfer.to === me)) return false;
     if (ui.op && l.operator !== ui.op) return false;
     if (!q) return true;
@@ -59,6 +61,7 @@ function mount(root, c) {
           <button class="chip" data-f="all" aria-pressed="true">Tous</button>
           <button class="chip" data-f="mine" aria-pressed="false">Les miens</button>
           <button class="chip" data-f="hot" aria-pressed="false">Chauds</button>
+          <button class="chip" data-f="agency" aria-pressed="false">Agences</button>
           <button class="chip" data-f="in" aria-pressed="false">Reçus</button>
         </div>
         <div id="ct-opfilter"></div>
@@ -142,6 +145,7 @@ function detailHTML(l) {
     <dl class="dl">
       <dt>Téléphone</dt><dd>${l.phone ? `<a href="tel:${esc(l.phone.replace(/\s/g, ''))}">${esc(l.phone)}</a>` : '<span class="dim">—</span>'}</dd>
       <dt>E-mail</dt><dd>${l.email ? `<a href="mailto:${esc(l.email)}">${esc(l.email)}</a>` : '<span class="dim">—</span>'}</dd>
+      <dt>Profil</dt><dd>${esc(l.profile || '—')}${l.volume ? ` <span class="dim">· ${esc(l.volume)}</span>` : ''}</dd>
       <dt>Événement</dt><dd>${esc(l.eventType || '—')}</dd>
       <dt>Période</dt><dd>${l.period ? esc(new Date(l.period + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })) : '—'}</dd>
       <dt>Jauge</dt><dd>${esc(l.audience || '—')}${l.audience ? ' personnes' : ''}</dd>
@@ -261,19 +265,19 @@ function exportLocal() {
     if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // pas de formule exécutée à l'ouverture dans Excel
     return `"${s.replace(/"/g, '""')}"`;
   };
-  const head = ['Enregistré le', 'Nom', 'Société', 'Fonction', 'Téléphone', 'Email', 'Événement', 'Période', 'Jauge', 'Budget', 'Besoins', 'Potentiel', 'Suivi par', 'Notes'];
-  const rows = ctx.hub.state.leads.filter((l) => !l.demo).map((l) => [new Date(l.createdAt).toLocaleString('fr-FR'), l.name, l.company, l.role, l.phone, l.email, l.eventType, l.period, l.audience, l.budget, l.needs, TEMPS[l.temperature]?.label, opById(l.operator).name, l.notes].map(cell).join(';'));
+  const head = ['Enregistré le', 'Nom', 'Société', 'Profil', 'Événements / an', 'Fonction', 'Téléphone', 'Email', 'Événement', 'Période', 'Jauge', 'Budget', 'Besoins', 'Potentiel', 'Suivi par', 'Notes'];
+  const rows = ctx.hub.state.leads.filter((l) => !l.demo).map((l) => [new Date(l.createdAt).toLocaleString('fr-FR'), l.name, l.company, l.profile, l.volume, l.role, l.phone, l.email, l.eventType, l.period, l.audience, l.budget, l.needs, TEMPS[l.temperature]?.label, opById(l.operator).name, l.notes].map(cell).join(';'));
   download(`mediacom-contacts-${new Date().toISOString().slice(0, 10)}.csv`, '﻿' + [head.map(cell).join(';'), ...rows].join('\r\n'), 'text/csv;charset=utf-8');
 }
 
 export async function loadDemo(c) {
   const now = Date.now();
   const D = [
-    { name: 'Claire Martin', company: 'Calanques Pharma (démo)', role: 'Responsable communication', eventType: 'Séminaire / plénière', audience: '300 – 800', budget: '15 – 40 k€', needs: ['Son', 'Écran LED', 'Vidéo & captation'], temperature: 'hot', operator: 'coraline', notes: 'Plénière annuelle, 2 jours, cherche un seul prestataire pour son, image et captation.', mins: 12 },
-    { name: 'Julien Roux', company: 'Ville de Saint-Cyr (démo)', role: 'Service événements', eventType: 'Événement public', audience: '2 000 +', budget: 'À définir', needs: ['Scène mobile MediaScène', 'Son', 'Lumière'], temperature: 'hot', operator: 'mazen', notes: 'Fête de la musique 2027 : intéressé par la MediaScène 60 m², demande les dates disponibles.', mins: 35 },
-    { name: 'Inès Haddad', company: 'Maison Ferrand (démo)', role: 'Office manager', eventType: 'Soirée de gala', audience: '100 – 300', budget: '5 – 15 k€', needs: ['Lumière', 'Mapping laser façade'], temperature: 'warm', operator: 'nolan', notes: 'Gala des 30 ans en juin, lieu pas encore choisi.', mins: 70 },
-    { name: 'Thomas Girard', company: 'Agence Littoral Events (démo)', role: 'Chef de projet', eventType: 'Congrès / convention', audience: '800 – 2 000', budget: '40 k€ +', needs: ['Streaming', 'Vidéo & captation', 'Structure & levage', 'Écran LED'], temperature: 'warm', operator: 'eric', notes: 'Cherche un partenaire technique récurrent pour ses congrès médicaux.', mins: 125 },
-    { name: 'Sarah Benali', company: 'Festival Les Pins (démo)', role: 'Production', eventType: 'Concert / festival', audience: '2 000 +', budget: '40 k€ +', needs: ['Son', 'Lumière', 'Structure & levage'], temperature: 'cold', operator: 'mazen', notes: 'Prestataire actuel en place, à recontacter pour l’édition 2028.', mins: 190 },
+    { name: 'Claire Martin', company: 'Calanques Séminaires (démo)', profile: 'Agence séminaire / DMC', volume: 'Plus de 20 / an', role: 'Cheffe de projet', eventType: 'Séminaire', audience: '100 – 300', budget: '15 – 40 k€', needs: ['Son', 'Écran LED', 'Vidéo & captation'], temperature: 'hot', operator: 'coraline', notes: 'Séminaire de 2 jours en avril dans un hôtel d’Aix, plénière + 4 ateliers. Cherche un seul prestataire technique pour toute l’année.', mins: 12 },
+    { name: 'Julien Roux', company: 'Agence Azur Events (démo)', profile: 'Agence événementielle', volume: '6 à 20 / an', role: 'Directeur de production', eventType: 'Convention / plénière', audience: '300 – 800', budget: '40 k€ +', needs: ['Son', 'Lumière', 'Écran LED', 'Streaming / hybride'], temperature: 'hot', operator: 'mazen', notes: 'Convention annuelle d’un client pharma, retransmission vers 3 sites. Veut une visite technique du lieu.', mins: 35 },
+    { name: 'Inès Haddad', company: 'Maison Ferrand (démo)', profile: 'Entreprise', volume: '1 à 5 / an', role: 'Office manager', eventType: 'Soirée d’entreprise', audience: '100 – 300', budget: '5 – 15 k€', needs: ['Lumière', 'Mapping laser façade'], temperature: 'warm', operator: 'nolan', notes: 'Soirée des 30 ans en juin, lieu pas encore choisi.', mins: 70 },
+    { name: 'Thomas Girard', company: 'Littoral DMC (démo)', profile: 'Agence séminaire / DMC', volume: '6 à 20 / an', role: 'Responsable incentive', eventType: 'Incentive / team building', audience: '100 – 300', budget: 'À définir', needs: ['Son', 'Scène mobile MediaScène', 'Structure & levage'], temperature: 'warm', operator: 'eric', notes: 'Incentive en plein air en septembre, intéressé par la MediaScène 60 m².', mins: 125 },
+    { name: 'Sarah Benali', company: 'Château des Pins (démo)', profile: 'Lieu / hôtel', volume: 'Plus de 20 / an', role: 'Responsable commercial', eventType: 'Séminaire', audience: '< 100', budget: 'À définir', needs: ['Son', 'Vidéo & captation'], temperature: 'cold', operator: 'mazen', notes: 'Cherche un prestataire à recommander à ses clients séminaires.', mins: 190 },
   ];
   for (const d of D) {
     const { mins, ...rest } = d;

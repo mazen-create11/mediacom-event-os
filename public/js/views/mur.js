@@ -9,8 +9,10 @@ const SCENES = [
   { id: 'message', label: 'Message', icon: 'message' },
   { id: 'black', label: 'Noir', icon: 'blackout' },
 ];
-const BACKS = ['scene-m-rouge', 'plateau-bleu-rouge', 'regie-concert', 'lasers', 'facade-bleu-rose', 'gala-award'];
-const MESSAGES = ['Bienvenue sur le stand Médiacom', 'Démonstration lumière dans 10 minutes', 'Parlez-nous de votre prochain événement', 'Merci pour votre visite'];
+const BACKS = ['scene-m-rouge', 'convention-palais', 'gala-award', 'plateau-bleu-rouge', 'regie-concert', 'facade-bleu-rose'];
+const MESSAGES = ['Bienvenue sur le stand Médiacom', 'Démonstration lumière', 'Parlez-nous de votre prochain séminaire', 'Merci pour votre visite'];
+const COUNTDOWNS = [0, 5, 10, 15, 30];
+let countdown = 0;
 let sort = 'recent';
 
 function mount(root, c) {
@@ -20,7 +22,8 @@ function mount(root, c) {
     <article class="module span-8 md-8" style="--i:0">
       <header class="mod-head"><span class="n">01</span><span class="t">Sortie mur LED · 4 × 2 m</span><span class="r" id="mw-state"></span></header>
       <div class="mod-body">
-        <div class="wall-preview" id="mw-preview"><iframe src="/mur.html?preview=1" title="Aperçu du mur LED" tabindex="-1"></iframe></div>
+        <div class="wall-wrap"><div class="wall-preview" id="mw-preview"><iframe src="/mur.html?preview=1" title="Aperçu du mur LED" tabindex="-1"></iframe></div>
+          <button class="btn btn-quiet btn-sm wall-full-btn" id="mw-full">${icon('expand')}Plein écran</button></div>
         <div class="scene-keys mt-3" id="mw-scenes" role="radiogroup" aria-label="Scène affichée" style="grid-template-columns:repeat(5,minmax(0,1fr))">
           ${SCENES.map((s) => `<button class="key" role="radio" data-scene="${s.id}">${icon(s.icon)}<span>${s.label}</span></button>`).join('')}
         </div>
@@ -45,7 +48,9 @@ function mount(root, c) {
           <div class="row"><input class="input" id="mw-q" placeholder="Votre prochain événement, en un mot ?" maxlength="80"><button class="btn btn-quiet btn-icon" id="mw-q-save" aria-label="Appliquer la question">${icon('check')}</button></div></div>
         <div class="field mt-3"><label for="mw-msg">Message plein écran</label>
           <div class="row"><input class="input" id="mw-msg" placeholder="Votre message" maxlength="120"><button class="btn btn-quiet btn-icon" id="mw-msg-save" aria-label="Afficher le message">${icon('send')}</button></div>
-          <div class="chips sm mt-1" id="mw-presets">${MESSAGES.map((m) => `<button class="chip" data-msg="${esc(m)}" aria-pressed="false">${esc(m)}</button>`).join('')}</div></div>
+          <div class="chips sm mt-1" id="mw-presets">${MESSAGES.map((m) => `<button class="chip" data-msg="${esc(m)}" aria-pressed="false">${esc(m)}</button>`).join('')}</div>
+          <div class="row wrap mt-2" style="gap:8px"><span class="lbl" style="font:500 10.5px/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-3)">Compte à rebours</span>
+            <div class="chips sm" id="mw-cd">${COUNTDOWNS.map((m) => `<button class="chip" data-cd="${m}" aria-pressed="${m === countdown}">${m ? m + ' min' : 'Aucun'}</button>`).join('')}</div></div></div>
         <div class="field mt-3"><span class="lbl">Fond du nuage</span>
           <div id="mw-backs" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
             ${BACKS.map((f) => `<button data-back="${f}" aria-pressed="false" style="position:relative;aspect-ratio:16/10;border-radius:8px;overflow:hidden;border:2px solid transparent"><img src="${photo(f, true)}" alt="" style="width:100%;height:100%;object-fit:cover" loading="lazy"></button>`).join('')}
@@ -69,7 +74,18 @@ function mount(root, c) {
     toast({ title: accept ? 'Le mur accepte les mots' : 'Mur en pause', text: accept ? '' : 'Les visiteurs voient un message d’attente.', tone: accept ? 'live' : 'warm' });
   });
   $('#mw-q-save', el).addEventListener('click', () => { ctx.hub.setWall({ question: $('#mw-q', el).value.trim() }); toast({ title: 'Question mise à jour', tone: 'live' }); });
-  const sendMsg = (m) => { ctx.hub.setWall({ message: m, scene: 'message' }); toast({ title: 'Message à l’écran', text: esc(m), tone: 'blue' }); };
+  const sendMsg = (m) => {
+    const now = Date.now() + ctx.hub.state.serverOffset;
+    ctx.hub.setWall({ message: m, scene: 'message', countdownTo: countdown ? now + countdown * 60000 : 0, countdownFrom: now });
+    toast({ title: 'Message à l’écran', text: esc(m) + (countdown ? ` · compte à rebours ${countdown} min` : ''), tone: 'blue' });
+  };
+  $('#mw-cd', el).addEventListener('click', (e) => {
+    const b = e.target.closest('[data-cd]');
+    if (!b) return;
+    countdown = Number(b.dataset.cd);
+    $$('[data-cd]', el).forEach((x) => x.setAttribute('aria-pressed', x === b));
+  });
+  $('#mw-full', el).addEventListener('click', fullPreview);
   $('#mw-msg-save', el).addEventListener('click', () => { const m = $('#mw-msg', el).value.trim(); if (m) sendMsg(m); });
   $('#mw-presets', el).addEventListener('click', (e) => { const b = e.target.closest('[data-msg]'); if (b) { $('#mw-msg', el).value = b.dataset.msg; sendMsg(b.dataset.msg); } });
   $('#mw-backs', el).addEventListener('click', (e) => { const b = e.target.closest('[data-back]'); if (b) ctx.hub.setWall({ photo: b.dataset.back }); });
@@ -126,6 +142,25 @@ function update(reason) {
   if (document.activeElement !== q) q.value = w.question || '';
   $$('[data-back]', el).forEach((b) => { const on = b.dataset.back === (w.photo || 'scene-m-rouge'); b.setAttribute('aria-pressed', on); b.style.borderColor = on ? 'var(--blue)' : 'transparent'; });
   renderWords();
+}
+
+// Sortie du mur en plein écran sur la tablette (pour la montrer à un client sans quitter l'app)
+function fullPreview() {
+  const host = $('#show');
+  host.innerHTML = `<div class="wall-full"><iframe src="/mur.html?preview=1" title="Mur LED plein écran"></iframe></div>
+    <button class="btn btn-quiet btn-icon" style="position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;z-index:2" aria-label="Fermer">${icon('x')}</button>`;
+  host.classList.add('is-open');
+  host.requestFullscreen?.().catch(() => {});
+  const close = () => {
+    document.removeEventListener('keydown', onKey);
+    host.classList.remove('is-open');
+    host.innerHTML = '';
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  };
+  const onKey = (e) => e.key === 'Escape' && close();
+  host.onclick = close;
+  host.onpointerdown = host.onpointerup = null;
+  document.addEventListener('keydown', onKey);
 }
 
 export default {

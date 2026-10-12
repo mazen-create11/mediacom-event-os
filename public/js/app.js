@@ -56,6 +56,8 @@ function go(id, { instant = false } = {}) {
   document.title = `${view.title} · Médiacom`;
   $('#stage').scrollTop = 0;
   $('#go').classList.toggle('is-away', !!view.hideGo);
+  // Le bouton se fait discret là où l'on travaille autre chose que la saisie
+  $('#go').classList.toggle('is-compact', !['regie', 'contacts'].includes(view.id));
 }
 
 window.addEventListener('hashchange', () => go(location.hash.slice(1)));

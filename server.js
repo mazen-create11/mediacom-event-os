@@ -18,7 +18,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const HTTPS_PORT = Number(process.env.HTTPS_PORT) || PORT + 443;
 const ROOT = __dirname;
 const PUBLIC = path.join(ROOT, 'public');
-const DATA = path.join(ROOT, 'data');
+const DATA = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(ROOT, 'data'); // DATA_DIR : hub de test séparé
 const CARDS = path.join(DATA, 'cards');
 fs.mkdirSync(CARDS, { recursive: true });
 
@@ -225,7 +225,7 @@ const MIME = {
 };
 
 const ALIASES = { '/': '/index.html', '/mur': '/mur.html', '/display.html': '/mur.html', '/nuage': '/nuage.html', '/client.html': '/nuage.html',
-  '/master': '/master.html', '/contact': '/contact.html', '/setup': '/setup.html' };
+  '/master': '/master.html', '/bilan': '/bilan.html', '/contact': '/contact.html', '/setup': '/setup.html' };
 
 function serveStatic(req, res, pathname) {
   pathname = ALIASES[pathname] || pathname;
@@ -504,8 +504,13 @@ async function route(req, res) {
 
     if (p === '/api/wall' && req.method === 'PUT') {
       const b = await readBody(req);
-      const allowed = ['scene', 'accept', 'message', 'question', 'photo'];
-      for (const k of allowed) if (k in b) db.wall[k] = typeof db.wall[k] === 'boolean' ? !!b[k] : String(b[k]).slice(0, 160);
+      const allowed = ['scene', 'accept', 'message', 'question', 'photo', 'countdownTo', 'countdownFrom'];
+      for (const k of allowed) {
+        if (!(k in b)) continue;
+        if (k === 'accept') db.wall[k] = !!b[k];
+        else if (k === 'countdownTo' || k === 'countdownFrom') db.wall[k] = Math.max(0, Number(b[k]) || 0);
+        else db.wall[k] = String(b[k] ?? '').slice(0, 160);
+      }
       db.wall.updatedAt = Date.now();
       save();
       broadcast('wall', publicWall());
@@ -534,9 +539,9 @@ async function route(req, res) {
     }
 
     if (p === '/api/export.csv') {
-      const head = ['Enregistré le', 'Nom', 'Société', 'Fonction', 'Téléphone', 'Email', 'Événement', 'Période', 'Jauge', 'Budget', 'Besoins', 'Potentiel', 'Suivi par', 'Notes'];
+      const head = ['Enregistré le', 'Nom', 'Société', 'Profil', 'Événements / an', 'Fonction', 'Téléphone', 'Email', 'Événement', 'Période', 'Jauge', 'Budget', 'Besoins', 'Potentiel', 'Suivi par', 'Notes'];
       const OPS = { mazen: 'Mazen', coraline: 'Coraline', nolan: 'Nolan', eric: 'Éric' };
-      const rows = db.leads.filter((l) => !l.demo).map((l) => [new Date(l.createdAt || l.updatedAt).toLocaleString('fr-FR'), l.name, l.company, l.role, l.phone, l.email,
+      const rows = db.leads.filter((l) => !l.demo).map((l) => [new Date(l.createdAt || l.updatedAt).toLocaleString('fr-FR'), l.name, l.company, l.profile, l.volume, l.role, l.phone, l.email,
         l.eventType, l.period, l.audience, l.budget, l.needs, { hot: 'Chaud', warm: 'Tiède', cold: 'Froid' }[l.temperature] || '', OPS[l.operator] || l.operator, l.notes].map(csvCell).join(';'));
       res.writeHead(200, {
         'Content-Type': 'text/csv; charset=utf-8',

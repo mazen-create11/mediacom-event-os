@@ -69,7 +69,7 @@
     import { LOGO_M, esc } from '/js/ui.js';
     const $ = (s) => document.querySelector(s);
     $('#logo').innerHTML = LOGO_M;
-    const SUGG = ['Gala', 'Concert', 'Séminaire', 'Festival', 'Lancement', 'Mariage', 'Convention', 'Spectacle'];
+    const SUGG = ['Séminaire', 'Convention', 'Plénière', 'Incentive', 'Soirée d’entreprise', 'Congrès', 'Team building', 'Gala'];
     $('#sugg').innerHTML = SUGG.map((s) => `<button type="button">${s}</button>`).join('');
     let sent = Number(sessionStorage.getItem('mc_sent') || 0);
     const showSent = () => ($('#sent').textContent = sent ? `${sent} envoyé${sent > 1 ? 's' : ''}` : '');

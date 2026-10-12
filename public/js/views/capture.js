@@ -1,4 +1,4 @@
-import { EVENT_TYPES, NEEDS, AUDIENCE, BUDGETS, TEMPS, opById } from '../data.js';
+import { EVENT_TYPES, NEEDS, AUDIENCE, BUDGETS, TEMPS, PROFILES, VOLUMES, opById } from '../data.js';
 import { icon, esc, $, $$, toast, openDrawer, closeDrawer, ago } from '../ui.js';
 import { markFresh } from './contacts.js';
 import { withToken } from '../hub.js';
@@ -53,6 +53,7 @@ export function openCapture(ctx, prefill = null) {
   const html = `<div class="drawer-head">
       <span class="eyebrow"><b>${editing ? 'Modifier' : 'Nouveau contact'}</b>${editing ? '' : ` · saisi par ${esc(ctx.me().name)}`}</span>
       <span class="spacer"></span>
+      <span class="cap-score" id="cap-score" aria-live="polite"></span>
       <button class="btn btn-quiet btn-icon btn-sm" data-close aria-label="Fermer">${icon('x')}</button>
     </div>
     <form class="drawer-body stack" id="cap-form" novalidate autocomplete="off">
@@ -65,11 +66,15 @@ export function openCapture(ctx, prefill = null) {
       <div id="cap-cam" hidden></div>
       <div class="grid-2">
         <div class="field"><label for="f-name">Nom</label><input class="input" id="f-name" name="name" value="${esc(l.name || '')}" placeholder="Prénom Nom" autocapitalize="words" enterkeyhint="next"></div>
-        <div class="field"><label for="f-company">Société</label><input class="input" id="f-company" name="company" value="${esc(l.company || '')}" placeholder="Entreprise, collectivité…" autocapitalize="words" enterkeyhint="next"></div>
+        <div class="field"><label for="f-company">Société</label><input class="input" id="f-company" name="company" value="${esc(l.company || '')}" placeholder="Agence, entreprise, lieu…" autocapitalize="words" enterkeyhint="next"></div>
         <div class="field"><label for="f-phone">Téléphone</label><input class="input" id="f-phone" name="phone" value="${esc(l.phone || '')}" inputmode="tel" placeholder="06 00 00 00 00" enterkeyhint="next"></div>
         <div class="field"><label for="f-email">E-mail</label><input class="input" id="f-email" name="email" value="${esc(l.email || '')}" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="nom@societe.fr" enterkeyhint="next"></div>
       </div>
-      <div class="field"><label for="f-role">Fonction</label><input class="input" id="f-role" name="role" value="${esc(l.role || '')}" placeholder="Direction communication, service événements…" enterkeyhint="done"></div>
+      <div class="field"><label for="f-role">Fonction</label><input class="input" id="f-role" name="role" value="${esc(l.role || '')}" placeholder="Chef de projet, directeur de production…" enterkeyhint="done"></div>
+      <div class="grid-2 grid-profile">
+        <div class="field"><span class="lbl">Profil</span>${single('profile', PROFILES, l.profile)}</div>
+        <div class="field"><span class="lbl">Événements par an</span>${single('volume', VOLUMES, l.volume)}</div>
+      </div>
       <div id="cap-dupe"></div>
       <div class="field"><span class="lbl">Potentiel</span>
         <div class="temps" role="radiogroup" id="cap-temp">${Object.entries(TEMPS).map(([k, t]) => `<button type="button" class="temp" data-t="${k}" role="radio" aria-pressed="${temperature === k}"><span class="led" data-s="${k}"></span><b>${t.label}</b><small>${t.hint}</small></button>`).join('')}</div></div>
@@ -122,6 +127,25 @@ export function openCapture(ctx, prefill = null) {
         dirty = true;
         $$('[data-t]', d).forEach((x) => x.setAttribute('aria-pressed', x === b));
       });
+
+      // Complétude : ce qu'il faut pour qu'un commercial puisse rappeler sans revenir vers le salon
+      const scoreBox = $('#cap-score', d);
+      const CRITERIA = [
+        ['Identité', () => val('name') || val('company')],
+        ['Joignable', () => val('phone') || val('email')],
+        ['Profil', () => form.querySelector('[data-single="profile"] [aria-pressed="true"]')],
+        ['Projet', () => form.querySelector('[data-single="eventType"] [aria-pressed="true"]')],
+        ['Besoins', () => form.querySelector('[data-multi="needs"] [aria-pressed="true"]')],
+      ];
+      const renderScore = () => {
+        const ok = CRITERIA.map(([, f]) => !!f());
+        const n = ok.filter(Boolean).length;
+        scoreBox.innerHTML = `<span class="cap-leds">${ok.map((v, i) => `<i class="${v ? 'on' : ''}" title="${CRITERIA[i][0]}"></i>`).join('')}</span><b>${n === 5 ? 'Complète' : `${n}/5`}</b>`;
+        scoreBox.classList.toggle('full', n === 5);
+      };
+      form.addEventListener('input', renderScore);
+      form.addEventListener('click', () => requestAnimationFrame(renderScore));
+      renderScore();
 
       // Entrée = champ suivant (clavier iPad)
       const order = ['f-name', 'f-company', 'f-phone', 'f-email', 'f-role'];
@@ -288,6 +312,7 @@ export function openCapture(ctx, prefill = null) {
           name: val('name'), company: val('company'), role: val('role'),
           phone: val('phone').replace(/\s+/g, ' '), email: val('email').toLowerCase(),
           eventType: pick('eventType'), audience: pick('audience'), budget: pick('budget'),
+          profile: pick('profile'), volume: pick('volume'),
           needs: $$('[data-multi="needs"] [aria-pressed="true"]', form).map((c) => c.dataset.v),
           period: val('period'), notes: val('notes'), temperature,
         };

@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Médiacom · Bilan du salon</title>
+  <meta name="theme-color" content="#04080f">
+  <link rel="icon" href="/assets/logo-m.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/os.css">
+  <style>
+    body { background: #04080f; }
+    .bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: calc(12px + env(safe-area-inset-top)) 20px 12px; background: rgba(4, 8, 15, 0.9); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .bar .spacer { flex: 1; }
+    .paper-wrap { padding: 28px 16px 60px; }
+    /* Le document lui-même : clair, pour l'impression et le PDF */
+    .paper { --ink: #0b1220; --ink-2: #4a5568; --ink-3: #8a94a6; --rule: #e3e8ef; --accent: #1670e4; --hot: #d93636;
+      max-width: 860px; margin: 0 auto; background: #fff; color: var(--ink); border-radius: 6px; padding: 48px 52px 40px; box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.06);
+      font: 400 13px/1.5 var(--f-ui); animation: rise 600ms var(--ease-out) both; }
+    .paper h1 { margin: 0; font: 500 30px/1.1 var(--f-ui); letter-spacing: -0.015em; }
+    .paper h2 { margin: 32px 0 12px; font: 600 10.5px/1 var(--f-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+    .doc-head { display: flex; align-items: flex-start; gap: 18px; padding-bottom: 22px; border-bottom: 2px solid var(--ink); }
+    .doc-head svg { width: 42px; flex: none; color: var(--ink); }
+    .doc-head .meta { margin-left: auto; text-align: right; font: 500 11px/1.6 var(--f-mono); color: var(--ink-2); }
+    .doc-head p { margin: 6px 0 0; color: var(--ink-2); }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--rule); border-radius: 6px; margin-top: 24px; }
+    .kpis div { padding: 14px 16px; border-left: 1px solid var(--rule); }
+    .kpis div:first-child { border-left: 0; }
+    .kpis b { display: block; font: 600 30px/1 var(--f-mono); letter-spacing: -0.03em; }
+    .kpis span { display: block; margin-top: 6px; font-size: 11.5px; color: var(--ink-2); }
+    .kpis .hot b { color: var(--hot); }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font: 600 9.5px/1.2 var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); padding: 0 8px 8px 0; border-bottom: 1px solid var(--ink); }
+    td { vertical-align: top; padding: 10px 8px 10px 0; border-bottom: 1px solid var(--rule); font-size: 12px; }
+    td b { font-weight: 600; }
+    td .s { display: block; color: var(--ink-2); font-size: 11.5px; margin-top: 2px; }
+    td .n { display: block; color: var(--ink-2); font-size: 11px; margin-top: 4px; max-width: 34ch; }
+    .tag-p { display: inline-block; padding: 1px 6px; border-radius: 3px; background: #eef3fb; color: #12407f; font-size: 10.5px; font-weight: 500; }
+    .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+    .bars { display: flex; flex-direction: column; gap: 8px; }
+    .bars .r { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; font-size: 12px; }
+    .bars .r i { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: #edf1f6; overflow: hidden; }
+    .bars .r i::before { content: ''; display: block; height: 100%; width: var(--w); background: var(--accent); border-radius: 3px; }
+    .bars .r b { font: 600 12px/1 var(--f-mono); }
+    .timeline svg { width: 100%; height: 120px; }
+    .words { display: flex; flex-wrap: wrap; gap: 6px; }
+    .words span { padding: 3px 8px; border: 1px solid var(--rule); border-radius: 12px; font-size: 11.5px; }
+    .words span b { font: 600 10.5px/1 var(--f-mono); color: var(--accent); margin-left: 4px; }
+    .empty-p { color: var(--ink-3); font-style: italic; margin: 0; }
+    .foot { margin-top: 34px; padding-top: 12px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; gap: 12px; font: 500 10px/1.5 var(--f-mono); color: var(--ink-3); }
+    @media (max-width: 760px) { .paper { padding: 28px 22px; } .kpis { grid-template-columns: repeat(2, 1fr); } .kpis div:nth-child(3) { border-left: 0; } .cols { grid-template-columns: 1fr; } .doc-head .meta { display: none; } table { font-size: 11px; } }
+    @media print {
+      @page { size: A4; margin: 14mm; }
+      body { background: #fff; }
+      .bar, .ambient { display: none !important; }
+      .paper-wrap { padding: 0; }
+      .paper { box-shadow: none; border-radius: 0; padding: 0; max-width: none; animation: none; }
+      tr, .cols > div { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i class="horizon"></i><i class="grain"></i></div>
+  <div class="bar">
+    <a class="btn btn-quiet btn-sm" href="/#regie" id="back">Retour à l’app</a>
+    <div class="seg" id="range" style="display:grid;grid-template-columns:1fr 1fr"><span class="thumb"></span><button data-r="day" aria-selected="true">Aujourd’hui</button><button data-r="all" aria-selected="false">Tout le salon</button></div>
+    <span class="spacer"></span>
+    <a class="btn btn-quiet btn-sm" id="csv" href="/api/export.csv">CSV</a>
+    <button class="btn btn-quiet btn-sm" id="mail">Envoyer à Éric</button>
+    <button class="btn btn-primary btn-sm" id="print">Imprimer · PDF</button>
+  </div>
+  <div class="paper-wrap"><article class="paper" id="paper"><p class="empty-p">Chargement…</p></article></div>
+
+  <script type="module">
+    import { withToken } from '/js/hub.js';
+    import { OPERATORS, opById, TEMPS, PROFILES, isAgency, COMPANY } from '/js/data.js';
+    import { LOGO_M, esc, toast } from '/js/ui.js';
+    const $ = (s) => document.querySelector(s);
+    let data = null, range = 'day';
+    $('#csv').href = withToken('/api/export.csv');
+
+    async function load() {
+      try {
+        const r = await fetch(withToken('/api/state'), { cache: 'no-store' });
+        if (!r.ok) throw new Error(r.status);
+        data = await r.json();
+      } catch {
+        // Hors ligne : dernier état connu de cette tablette
+        try { data = JSON.parse(localStorage.getItem('mc_os_cache_v3')) || { leads: [], words: [] }; } catch { data = { leads: [], words: [] }; }
+      }
+      render();
+    }
+
+    const day0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
+    const leads = () => (data.leads || []).filter((l) => !l.demo && (range === 'all' || (l.createdAt || 0) >= day0()));
+    const count = (arr, key) => { const m = new Map(); for (const v of arr.flatMap(key)) if (v) m.set(v, (m.get(v) || 0) + 1); return [...m.entries()].sort((a, b) => b[1] - a[1]); };
+    const bars = (rows) => {
+      if (!rows.length) return '<p class="empty-p">Aucune donnée.</p>';
+      const max = rows[0][1];
+      return `<div class="bars">${rows.map(([k, v]) => `<div class="r"><span>${esc(k)}</span><b>${v}</b><i style="--w:${Math.round((v / max) * 100)}%"></i></div>`).join('')}</div>`;
+    };
+
+    function timeline(list) {
+      if (!list.length) return '<p class="empty-p">Aucun contact sur la période.</p>';
+      const hours = list.map((l) => new Date(l.createdAt).getHours());
+      const h0 = Math.min(9, ...hours), h1 = Math.max(19, ...hours) + 1;
+      const n = (h1 - h0) * 2;
+      const bins = Array(n).fill(0);
+      for (const l of list) { const d = new Date(l.createdAt); bins[(d.getHours() - h0) * 2 + (d.getMinutes() >= 30 ? 1 : 0)]++; }
+      const max = Math.max(1, ...bins), W = 760, H = 96, bw = W / n;
+      return `<svg viewBox="0 0 ${W} ${H + 18}" preserveAspectRatio="none" role="img" aria-label="Contacts par demi-heure">
+        ${bins.map((v, i) => `<rect x="${i * bw + 2}" y="${H - (v / max) * H}" width="${bw - 4}" height="${(v / max) * H || 1}" rx="2" fill="${v === max && v ? '#1670e4' : '#9cc0f0'}"/>`).join('')}
+        ${[h0, Math.round((h0 + h1) / 2), h1].map((h, i) => `<text x="${i === 0 ? 0 : i === 1 ? W / 2 : W}" y="${H + 14}" font-family="JB Mono, monospace" font-size="10" fill="#8a94a6" text-anchor="${['start', 'middle', 'end'][i]}">${String(h).padStart(2, '0')}:00</text>`).join('')}
+      </svg>`;
+    }
+
+    function render() {
+      const list = leads();
+      const hot = list.filter((l) => l.temperature === 'hot').sort((a, b) => a.createdAt - b.createdAt);
+      const pending = list.filter((l) => l.transfer && !l.transfer.ack);
+      const ev = data.settings?.eventName && data.settings.eventName !== 'Salon' ? data.settings.eventName : 'Salon';
+      const when = range === 'day' ? new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'Tout le salon';
+      const words = (data.words || []).filter((w) => !w.hidden).sort((a, b) => b.count - a.count).slice(0, 12);
+      $('#paper').innerHTML = `
+        <header class="doc-head">${LOGO_M}<div><h1>Bilan du stand</h1><p>${esc(ev)} · ${esc(when)}</p></div>
+          <div class="meta">Généré à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}<br>${list.length} contact${list.length > 1 ? 's' : ''} hors démo</div></header>
+        <div class="kpis">
+          <div><b>${list.length}</b><span>Contacts saisis</span></div>
+          <div class="hot"><b>${hot.length}</b><span>Contacts chauds</span></div>
+          <div><b>${list.filter(isAgency).length}</b><span>Agences</span></div>
+          <div><b>${pending.length}</b><span>Transferts à reprendre</span></div>
+        </div>
+
+        <h2>À rappeler en priorité</h2>
+        ${hot.length ? `<table><thead><tr><th>Contact</th><th>Projet</th><th>Besoins</th><th>Suivi</th></tr></thead><tbody>
+          ${hot.map((l) => `<tr>
+            <td><b>${esc(l.name || 'Sans nom')}</b><span class="s">${esc(l.company || '')}${l.role ? ' · ' + esc(l.role) : ''}</span>
+              <span class="s">${esc(l.phone || '')}${l.phone && l.email ? ' · ' : ''}${esc(l.email || '')}</span>${l.profile ? `<span class="tag-p">${esc(l.profile)}</span>` : ''}</td>
+            <td>${esc(l.eventType || '—')}<span class="s">${[l.audience && l.audience + ' pers.', l.budget, l.period && new Date(l.period + '-01').toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })].filter(Boolean).map(esc).join(' · ')}</span>
+              ${l.notes ? `<span class="n">${esc(l.notes.slice(0, 160))}${l.notes.length > 160 ? '…' : ''}</span>` : ''}</td>
+            <td>${(l.needs || []).map(esc).join(', ') || '—'}</td>
+            <td>${esc(opById(l.operator).name)}${l.transfer && !l.transfer.ack ? '<span class="s">transmis, non repris</span>' : ''}</td></tr>`).join('')}
+        </tbody></table>` : '<p class="empty-p">Aucun contact chaud sur la période.</p>'}
+
+        <h2>Répartition</h2>
+        <div class="cols">
+          <div><b style="font-size:12px">Profils</b><div style="margin-top:10px">${bars(count(list, (l) => [l.profile || 'Non renseigné']))}</div></div>
+          <div><b style="font-size:12px">Équipe</b><div style="margin-top:10px">${bars(OPERATORS.map((o) => [o.name, list.filter((l) => l.operator === o.id).length]).filter((r) => r[1]).sort((a, b) => b[1] - a[1]))}</div></div>
+          <div><b style="font-size:12px">Besoins</b><div style="margin-top:10px">${bars(count(list, (l) => l.needs || []).slice(0, 7))}</div></div>
+        </div>
+
+        <h2>Affluence par demi-heure</h2>
+        <div class="timeline">${timeline(list)}</div>
+
+        <h2>Mur LED : mots les plus envoyés</h2>
+        ${words.length ? `<div class="words">${words.map((w) => `<span>${esc(w.text)}<b>×${w.count}</b></span>`).join('')}</div>` : '<p class="empty-p">Aucun mot reçu.</p>'}
+
+        <footer class="foot"><span>Médiacom · ${esc(COMPANY.address)} · ${COMPANY.phone}</span><span>Application de stand · contacts de démonstration exclus</span></footer>`;
+    }
+
+    // Résumé texte pour l'e-mail (les messageries limitent la longueur d'un lien mailto)
+    function summary() {
+      const list = leads();
+      const hot = list.filter((l) => l.temperature === 'hot');
+      const lines = [
+        `Bilan du stand Médiacom · ${range === 'day' ? new Date().toLocaleDateString('fr-FR') : 'tout le salon'}`, '',
+        `${list.length} contacts · ${hot.length} chauds · ${list.filter(isAgency).length} agences`, '',
+        'À rappeler en priorité :',
+        ...hot.slice(0, 15).map((l) => `- ${l.name || 'Sans nom'}${l.company ? ' (' + l.company + ')' : ''} · ${l.phone || l.email || 'sans coordonnées'} · suivi ${opById(l.operator).name}`),
+        hot.length > 15 ? `… et ${hot.length - 15} autres dans le bilan PDF.` : '', '',
+        'Bilan complet : à imprimer en PDF depuis l’application (onglet Régie > Bilan).',
+      ];
+      return lines.filter((x, i, a) => x !== '' || a[i - 1] !== '').join('\n');
+    }
+
+    const seg = $('#range');
+    const moveThumb = () => { const b = seg.querySelector('[aria-selected="true"]'); const t = seg.querySelector('.thumb'); t.style.width = b.offsetWidth + 'px'; t.style.transform = `translateX(${b.offsetLeft - 4}px)`; };
+    new ResizeObserver(moveThumb).observe(seg);
+    seg.addEventListener('click', (e) => { const b = e.target.closest('[data-r]'); if (!b) return; range = b.dataset.r; seg.querySelectorAll('[data-r]').forEach((x) => x.setAttribute('aria-selected', x === b)); moveThumb(); render(); });
+    $('#print').addEventListener('click', () => print());
+    $('#mail').addEventListener('click', () => {
+      location.href = `mailto:${COMPANY.emailEric}?subject=${encodeURIComponent('Bilan stand Médiacom · ' + new Date().toLocaleDateString('fr-FR'))}&body=${encodeURIComponent(summary())}`;
+    });
+    load();
+  </script>
+  <div class="toasts" id="toasts"></div>
+</body>
+</html>

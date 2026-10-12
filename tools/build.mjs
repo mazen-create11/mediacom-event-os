@@ -50,6 +50,9 @@ const out = join(pub, 'assets/photos');
 ensure(out);
 const files = readdirSync(src);
 for (const [num, name] of Object.entries(PHOTOS)) {
+  // Version agrandie (Real-ESRGAN, contrôlée à la main) si elle existe, sinon l'original
+  const upscaled = join(root, '_research/upscaled', `${num}.jpg`);
+  if (existsSync(upscaled)) { cpSync(upscaled, join(out, `${name}.jpg`)); cpSync(join(root, '_research/upscaled', `${num}-s.jpg`), join(out, `${name}-s.jpg`)); continue; }
   const f = files.find((x) => x.startsWith(num + '.'));
   if (!f) { console.warn('photo manquante', num); continue; }
   const dst = join(out, `${name}.jpg`);
@@ -65,6 +68,8 @@ const MS = { 'ms60-concert-public-reel': 'mediascene-concert', 'hero-vieux-port-
   'mediascene-les-gets': 'mediascene-les-gets', 'hero-scene-nuit': 'mediascene-nuit', 'ete-mediascene': 'mediascene-festival' };
 for (const [from, name] of Object.entries(MS)) {
   const dst = join(out, `${name}.jpg`);
+  const upscaled = join(root, '_research/upscaled', `${from}.jpg`);
+  if (existsSync(upscaled)) { cpSync(upscaled, dst); cpSync(join(root, '_research/upscaled', `${from}-s.jpg`), join(out, `${name}-s.jpg`)); continue; }
   if (existsSync(dst)) continue;
   const base = [join(root, '_research/mediascene', `${from}.jpg`), '-auto-orient', '-strip', '-colorspace', 'sRGB', '-interlace', 'Plane'];
   execFileSync('magick', [...base, '-resize', '1800x1800>', '-quality', '82', dst]);

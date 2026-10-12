@@ -1,7 +1,7 @@
 // Mur LED : nuage de mots sans chevauchement, showreel, MediaScène, message, noir.
 // Lit le flux public du hub (aucune donnée personnelle), ou le stockage local hors hub.
 import { wallFeed } from './hub.js';
-import { PHOTOS, MEDIASCENE, COMPANY, photo } from './data.js';
+import { PHOTOS, VIDEOS, MEDIASCENE, COMPANY, photo, video, poster } from './data.js';
 import { LOGO_M, qrSVG, esc, wifiPayload } from './ui.js';
 
 const preview = new URLSearchParams(location.search).has('preview');
@@ -12,7 +12,7 @@ const wallEl = $('#wall');
 const cloudEl = $('#w-cloud');
 $('#w-m').innerHTML = LOGO_M;
 
-const SEEDS = ['Son', 'Lumière', 'Image', 'Émotion', 'Scène', 'Live', 'Marseille', 'Gala', 'Festival', 'Séminaire', 'Concert', 'Show'];
+const SEEDS = ['Séminaire', 'Convention', 'Plénière', 'Incentive', 'Soirée', 'Congrès', 'Son', 'Lumière', 'Image', 'Émotion', 'Marseille', 'Live'];
 const state = { wall: { scene: 'cloud', accept: true }, words: [], info: null, spotId: null };
 
 /* ---------- Bandeau ---------- */
@@ -155,36 +155,118 @@ function spotlight(id) {
   spotTimer = setTimeout(() => { n.classList.remove('spot'); beam.classList.remove('on'); }, 3200);
 }
 
-/* ---------- Showreel ---------- */
-const REEL = PHOTOS.filter((p) => p.w >= 1000 && p.w > p.h);
-let reelI = 0, reelTimer = 0;
+/* ---------- Showreel : vidéos réelles intercalées avec les photos ---------- */
+const REEL = (() => {
+  const photos = PHOTOS.filter((p) => p.w >= 1000 && p.w > p.h).map((p) => ({ ...p, type: 'photo' }));
+  const vids = VIDEOS.map((v) => ({ ...v, type: 'video' }));
+  if (!vids.length) return photos;
+  const out = [];
+  let vi = 0;
+  photos.forEach((p, i) => { if (i % 2 === 0 && vi < vids.length) out.push(vids[vi++]); out.push(p); });
+  while (vi < vids.length) out.push(vids[vi++]);
+  return out;
+})();
+let reelI = 0, reelTimer = 0, reelOn = false;
 function startReel() {
   const host = $('#w-reel');
-  if (!host.children.length) host.innerHTML = REEL.map((p) => `<div class="s" style="background-image:url('${photo(p.f)}')"></div>`).join('');
+  if (!host.children.length) {
+    host.innerHTML = REEL.map((p) => p.type === 'video'
+      ? `<div class="s v"><video muted playsinline preload="metadata" poster="${poster(p.f)}" src="${video(p.f)}"></video></div>`
+      : `<div class="s" style="background-image:url('${photo(p.f)}')"></div>`).join('');
+  }
+  reelOn = true;
   const show = () => {
-    const slides = host.children;
-    [...slides].forEach((s, i) => s.classList.toggle('on', i === reelI));
-    const p = REEL[reelI];
+    if (!reelOn) return;
+    clearTimeout(reelTimer);
+    const slides = [...host.children];
+    const item = REEL[reelI];
+    slides.forEach((el, i) => {
+      el.classList.toggle('on', i === reelI);
+      const v = el.querySelector('video');
+      if (v && i !== reelI) setTimeout(() => { if (!el.classList.contains('on')) v.pause(); }, 1500);
+    });
     const cap = $('.w-reel-cap');
-    $('#w-reel-k').textContent = `Réalisation ${String(reelI + 1).padStart(2, '0')} / ${String(REEL.length).padStart(2, '0')}`;
-    $('#w-reel-t').textContent = p.c;
+    $('#w-reel-k').textContent = `${item.type === 'video' ? 'En prestation' : 'Réalisation'} · ${String(reelI + 1).padStart(2, '0')} / ${String(REEL.length).padStart(2, '0')}`;
+    $('#w-reel-t').textContent = item.c;
     cap.classList.remove('swap'); void cap.offsetWidth; cap.classList.add('swap');
-    reelI = (reelI + 1) % REEL.length;
+    const next = () => { reelI = (reelI + 1) % REEL.length; show(); };
+    const v = slides[reelI].querySelector('video');
+    if (v) {
+      v.currentTime = 0;
+      v.play().catch(() => {});
+      v.onended = next;
+      reelTimer = setTimeout(next, Math.min((item.dur || 20) * 1000, 24000)); // garde-fou
+    } else {
+      reelTimer = setTimeout(next, 7000);
+    }
+    // Préchargement de l'élément suivant
+    const nx = slides[(reelI + 1) % slides.length]?.querySelector('video');
+    if (nx && nx.preload !== 'auto') nx.preload = 'auto';
   };
-  clearInterval(reelTimer);
   show();
-  reelTimer = setInterval(show, 7000);
 }
-const stopReel = () => clearInterval(reelTimer);
+function stopReel() {
+  reelOn = false;
+  clearTimeout(reelTimer);
+  document.querySelectorAll('#w-reel video').forEach((v) => v.pause());
+}
 
-/* ---------- MediaScène ---------- */
-let msI = 0, msTimer = 0;
+/* ---------- MediaScène : la gamme de 60 à 120 m² ---------- */
+let msI = 0, msTimer = 0, msBuilt = false;
 function startMS() {
-  $('#w-ms-specs').innerHTML = [0, 1, 3, 4].map((k) => MEDIASCENE.specs[k]).map((s, i) => `<div style="--i:${i}"><b>${esc(s.v)}</b><span>${esc(s.l)}</span></div>`).join('');
-  const set = () => { $('#w-ms-photo').style.backgroundImage = `url('${photo(MEDIASCENE.photos[msI % MEDIASCENE.photos.length].f)}')`; msI++; };
+  if (!msBuilt) {
+    msBuilt = true;
+    const [m60, m120] = MEDIASCENE.models;
+    const card = (m, i) => `<article class="w-ms-card" style="--i:${i}"><header><b>${esc(m.name)}</b><span>${esc(m.label)}</span></header>
+      <dl>${m.key.map((k) => `<div><dt>${esc(k.v)}</dt><dd>${esc(k.l)}</dd></div>`).join('')}</dl></article>`;
+    $('#w-ms-cards').innerHTML = card(m60, 0) + card(m120, 1);
+    $('#w-ms-ruler').innerHTML = [60, 80, 100, 120].map((v, i) => `<span style="--i:${i}"><i></i>${v}</span>`).join('') + '<b></b>';
+    $('#w-ms-photo').innerHTML = MEDIASCENE.photos.map((p) => `<div class="s" style="background-image:url('${photo(p.f)}')"></div>`).join('');
+  }
+  const slides = [...$('#w-ms-photo').children];
+  const set = () => {
+    slides.forEach((s, i) => s.classList.toggle('on', i === msI % slides.length));
+    $('#w-ms-cap').textContent = MEDIASCENE.photos[msI % slides.length].c;
+    msI++;
+  };
   set();
   clearInterval(msTimer);
-  msTimer = setInterval(set, 9000);
+  msTimer = setInterval(set, 8000);
+}
+
+/* ---------- Message : révélation mot à mot, compte à rebours optionnel ---------- */
+let lastMessage = null, countTimer = 0;
+function renderMessage(w) {
+  const text = w.message || 'Bienvenue sur le stand Médiacom';
+  const box = $('#w-message');
+  if (text !== lastMessage) {
+    lastMessage = text;
+    // Taille ajustée à la longueur : un message court occupe l'écran, un long reste lisible
+    const len = text.length;
+    box.style.fontSize = `${Math.max(3.6, Math.min(8.4, 8.4 - (len - 18) * 0.085))}cqw`;
+    box.innerHTML = text.split(/\s+/).map((wd, i) => `<span class="wd"><span style="--i:${i}">${esc(wd)}</span></span>`).join(' ');
+    box.classList.remove('in'); void box.offsetWidth; box.classList.add('in');
+  }
+  $('#w-msg-k').textContent = state.eventName && state.eventName !== 'Salon' ? `Médiacom · ${state.eventName}` : 'Médiacom · Le son, la lumière, l’image';
+  clearInterval(countTimer);
+  const cd = $('#w-count');
+  const to = Number(w.countdownTo) || 0;
+  if (to > Date.now() - 60000 && to) {
+    cd.hidden = false;
+    const total = Math.max(1, to - (Number(w.countdownFrom) || w.updatedAt || Date.now()));
+    const tick = () => {
+      const left = Math.max(0, to - Date.now());
+      const m = Math.floor(left / 60000), sec = Math.floor((left % 60000) / 1000);
+      $('#w-count-t').textContent = left ? `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : 'Maintenant';
+      $('#w-count-bar').style.transform = `scaleX(${(1 - left / total).toFixed(4)})`;
+      cd.classList.toggle('now', !left);
+      if (!left) clearInterval(countTimer);
+    };
+    tick();
+    countTimer = setInterval(tick, 250);
+  } else {
+    cd.hidden = true;
+  }
 }
 
 /* ---------- Scènes ---------- */
@@ -194,15 +276,18 @@ function setScene(scene) {
   current = scene;
   wallEl.dataset.scene = scene;
   document.querySelectorAll('.w-scene').forEach((s) => s.classList.toggle('on', s.dataset.scene === scene));
-  scene === 'reel' ? startReel() : stopReel();
+  if (scene === 'reel') startReel(); else stopReel();
   if (scene === 'mediascene') startMS(); else clearInterval(msTimer);
-  if (scene === 'cloud') requestAnimationFrame(layout);
+  if (scene === 'cloud') fontReady.then(() => requestAnimationFrame(layout));
 }
 
 function applyWall() {
   const w = state.wall || {};
   setScene(w.scene || 'cloud');
-  $('#w-message').textContent = w.message || 'Bienvenue sur le stand Médiacom';
+  renderMessage(w);
+  const ph0 = w.photo || 'scene-m-rouge';
+  const mb = $('#w-msg-bg');
+  if (mb.dataset.f !== ph0) { mb.dataset.f = ph0; mb.style.backgroundImage = `url('${photo(ph0)}')`; }
   $('#w-question').textContent = w.question || 'Votre prochain événement, en un mot\u00a0?';
   const bg = $('#w-photo');
   const ph = w.photo || 'scene-m-rouge';
@@ -227,6 +312,7 @@ function applyWords() {
 }
 
 function onData(d) {
+  if (d.eventName) state.eventName = d.eventName;
   if (d.wall) { state.wall = d.wall; applyWall(); }
   if (d.words) { state.words = d.words.filter((w) => !w.hidden); applyWords(); }
   if (d.word && !d.word.hidden) {
@@ -247,6 +333,8 @@ if (preview) {
 }
 
 new ResizeObserver(() => current === 'cloud' && layout()).observe(wallEl);
+// Les largeurs de mots se mesurent avec la vraie police : on replace tout quand elle arrive
+document.fonts?.addEventListener?.('loadingdone', () => current === 'cloud' && layout());
 loadInfo();
 setInterval(loadInfo, 60000);
 applyWall();

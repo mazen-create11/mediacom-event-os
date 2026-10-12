@@ -2,7 +2,7 @@ import { TARIFS_DEFAULT, EVENT_TYPES, opById } from '../data.js';
 import { icon, esc, $, $$, toast, fmtEUR, reduced } from '../ui.js';
 
 let el, ctx;
-const cfg = { type: 'Séminaire / plénière', pax: 300, days: 1, opts: new Set(['son', 'lumiere']) };
+const cfg = { type: 'Séminaire', pax: 300, days: 1, opts: new Set(['son', 'lumiere']) };
 let shown = { min: 0, max: 0 };
 
 const tarifs = () => {
@@ -133,7 +133,7 @@ function mount(root, c) {
 }
 
 function neededFromOpts() {
-  const map = { son: 'Son', lumiere: 'Lumière', led: 'Écran LED', stream: 'Streaming', scene: 'Scène mobile MediaScène', mapping: 'Mapping laser façade' };
+  const map = { son: 'Son', lumiere: 'Lumière', led: 'Écran LED', stream: 'Streaming / hybride', scene: 'Scène mobile MediaScène', mapping: 'Mapping laser façade' };
   return [...cfg.opts].map((o) => map[o]).filter(Boolean);
 }
 

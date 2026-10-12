@@ -1,4 +1,4 @@
-import { OPERATORS, NEEDS, opById, initial } from '../data.js';
+import { OPERATORS, NEEDS, opById, initial, isAgency } from '../data.js';
 import { icon, esc, $, $$, odometer, ago, hhmm, LOGO_M } from '../ui.js';
 import { leadRow, loadDemo } from './contacts.js';
 
@@ -62,6 +62,7 @@ function mount(root, c) {
         <div class="row mt-3" style="gap:18px">
           <div class="kv"><span class="eyebrow">Tièdes</span><b id="rg-warm">0</b></div>
           <div class="kv"><span class="eyebrow">Froids</span><b id="rg-cold">0</b></div>
+          <div class="kv"><span class="eyebrow">Agences</span><b id="rg-ag">0</b></div>
           <div class="kv"><span class="eyebrow">Transferts</span><b id="rg-tr">0</b></div>
         </div>
       </div>
@@ -91,7 +92,7 @@ function mount(root, c) {
     </article>
 
     <article class="module span-7" style="--i:5">
-      <header class="mod-head"><span class="n">06</span><span class="t">Derniers contacts</span><span class="r"><a href="#contacts" class="dim">Tout voir</a></span></header>
+      <header class="mod-head"><span class="n">06</span><span class="t">Derniers contacts</span><span class="r"><a href="#contacts" class="dim">Tout voir</a><span class="dim">·</span><a href="/bilan" class="bilan-link">Bilan du jour</a></span></header>
       <div class="mod-body" style="padding:8px 10px 10px" id="rg-latest"></div>
     </article>
 
@@ -142,6 +143,7 @@ function update(reason) {
   $('#rg-warm', el).textContent = leads.filter((l) => l.temperature === 'warm').length;
   $('#rg-cold', el).textContent = leads.filter((l) => l.temperature === 'cold').length;
   $('#rg-tr', el).textContent = leads.filter((l) => l.transfer).length;
+  $('#rg-ag', el).textContent = leads.filter(isAgency).length;
 
   const visible = words.filter((w) => !w.hidden);
   $('#rg-words', el).textContent = visible.length;
