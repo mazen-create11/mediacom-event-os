@@ -49,6 +49,17 @@ export function deviceId() {
   return id;
 }
 
+// 'hub' : le hub répond ; 'down' : rien ne répond (hub éteint, Wi-Fi coupé) ; 'none' : site statique sans hub
+export async function hubKind() {
+  try {
+    const r = await fetch('/api/health', { cache: 'no-store' });
+    const d = await r.json().catch(() => null);
+    return d && typeof d.ok === 'boolean' ? 'hub' : 'none';
+  } catch {
+    return 'down';
+  }
+}
+
 const retryable = (e) => !e.status || e.status >= 500 || e.status === 401 || e.status === 408;
 const isDataURL = (v) => typeof v === 'string' && v.startsWith('data:');
 
@@ -221,8 +232,17 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
   let es = null;
   let lastMsg = 0;
   let retry = 0;
+  let probed = false;
   function connect() {
     if (state.mode === 'local') { setStatus('local'); return; }
+    // Page servie sans hub (lien de démonstration) : bascule en mode local. Un hub éteint, lui, reste « hors ligne ».
+    if (!probed) {
+      probed = true;
+      hubKind().then((k) => {
+        if (k === 'none') { state.mode = 'local'; setStatus('local'); emit('change', 'hello'); } else connect();
+      });
+      return;
+    }
     es?.close();
     setStatus(state.status === 'online' ? 'online' : 'connecting');
     const q = new URLSearchParams({ device: deviceId(), op: operator() || '', kind });
@@ -411,12 +431,21 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
 /* ---------- Flux public du mur LED (sans appairage) ---------- */
 
 export function wallFeed(onData) {
-  if (!location.protocol.startsWith('http')) {
+  if (!location.protocol.startsWith('http')) return localWall(onData);
+  hubKind().then((k) => (k === 'none' ? localWall(onData) : hubWall(onData)));
+  return { mode: 'auto' };
+}
+
+function localWall(onData) {
+  {
     const read = () => { const c = load(CACHE_KEY, {}); onData({ wall: c.wall || { scene: 'cloud', accept: true }, words: (c.words || []).filter((w) => !w.hidden), eventName: c.settings?.eventName }); };
     read();
     if ('BroadcastChannel' in window) new BroadcastChannel(BC_NAME).onmessage = ({ data }) => { read(); if (data.type === 'word' && !data.data?.hidden) onData({ word: data.data }); };
     return { mode: 'local' };
   }
+}
+
+function hubWall(onData) {
   let es;
   const open = () => {
     es = new EventSource('/api/wall/stream');
