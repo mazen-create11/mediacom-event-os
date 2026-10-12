@@ -125,12 +125,6 @@ function publicWall() {
   return { wall: db.wall, words: db.words.filter((w) => !w.hidden), eventName: db.settings.eventName };
 }
 
-// Purge du limiteur de débit (des centaines de téléphones passent dans la journée)
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, r] of rate) if (now - r.last > 600000) rate.delete(ip);
-}, 300000);
-
 process.on('uncaughtException', (e) => console.error('[hub] erreur non gérée', e));
 process.on('unhandledRejection', (e) => console.error('[hub] promesse rejetée', e));
 
@@ -161,19 +155,6 @@ function tokenOf(req, url) {
 
 function isStaff(req, url) {
   return isLocal(req) || tokenOf(req, url) === config.token;
-}
-
-// Limiteur de débit des mots visiteurs : 1 envoi / 2,5 s et 25 / 10 min par IP
-const rate = new Map();
-function rateOk(ip) {
-  const now = Date.now();
-  const r = rate.get(ip) || { last: 0, hits: [] };
-  r.hits = r.hits.filter((t) => now - t < 600000);
-  if (now - r.last < 2500 || r.hits.length >= 25) return false;
-  r.last = now;
-  r.hits.push(now);
-  rate.set(ip, r);
-  return true;
 }
 
 const BLOCKED = /\b(merde|putain|putes?|connard|connasse|encul\w*|salope|batard|niquer?|nique|ntm|fdp|tg|pd|bite|couilles?|chatte|nazi|hitler|negro|bougnoul\w*|youpin|pede|tapette|enfoire)\b/i;
@@ -430,8 +411,6 @@ async function route(req, res) {
 
     if (p === '/api/words' && req.method === 'POST') {
       if (!db.wall.accept) return json(res, 423, { error: 'Le mur est en pause, réessayez dans un instant' });
-      const ip = req.socket.remoteAddress || '?';
-      if (!staff && !rateOk(ip)) return json(res, 429, { error: 'Doucement, un mot toutes les quelques secondes' });
       const { text, error } = cleanWord((await readBody(req, 4096)).text);
       if (error) return json(res, 422, { error });
       const key = text.toLocaleLowerCase('fr').normalize('NFD').replace(/[̀-ͯ]/g, '');

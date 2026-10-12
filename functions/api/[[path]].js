@@ -29,17 +29,6 @@ async function words(db, all = false) {
   return results.map((w) => ({ ...w, hidden: !!w.hidden }));
 }
 
-// 1 envoi toutes les 2,5 s et 25 envois par tranche de 10 min, par adresse
-async function rateOk(db, ip) {
-  const now = Date.now();
-  const row = await db.prepare('SELECT last, hits FROM rate WHERE ip = ?').bind(ip).first();
-  const hits = row ? JSON.parse(row.hits).filter((t) => now - t < 600000) : [];
-  if (row && (now - row.last < 2500 || hits.length >= 25)) return false;
-  hits.push(now);
-  await db.prepare('INSERT INTO rate (ip, last, hits) VALUES (?1, ?2, ?3) ON CONFLICT(ip) DO UPDATE SET last = ?2, hits = ?3').bind(ip, now, JSON.stringify(hits)).run();
-  return true;
-}
-
 export async function onRequest({ request, env, params }) {
   const db = env.DB;
   const path = '/' + [].concat(params.path || []).join('/');
@@ -81,8 +70,6 @@ export async function onRequest({ request, env, params }) {
     if (path === '/words' && method === 'POST') {
       const w0 = await getWall(db);
       if (!w0.accept) return json({ error: 'Le mur est en pause, réessayez dans un instant' }, 423);
-      const ip = request.headers.get('CF-Connecting-IP') || 'inconnu';
-      if (!(await rateOk(db, ip))) return json({ error: 'Doucement, un mot toutes les quelques secondes' }, 429);
       const { text, error } = cleanWord((await body()).text);
       if (error) return json({ error }, 422);
       const key = text.toLocaleLowerCase('fr').normalize('NFD').replace(/[̀-ͯ]/g, '');

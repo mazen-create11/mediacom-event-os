@@ -1,7 +1,7 @@
 // Service worker : l'application s'ouvre même si le hub redémarre ou si le Wi-Fi hoquette.
 // Pages, scripts et styles : réseau d'abord (un correctif est pris dès le lancement suivant),
 // cache en secours. Polices, photos, icônes et bibliothèques : cache d'abord. Jamais d'/api.
-const VERSION = 'mc-os-v3.5.0';
+const VERSION = 'mc-os-v3.5.1';
 const CORE = [
   '/', '/nuage', '/contact', '/master', '/mur',
   '/css/os.css', '/css/mur.css',

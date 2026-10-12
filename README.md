@@ -40,7 +40,7 @@ La page `http://localhost:3000/setup` s'ouvre avec les QR codes de mise en servi
 ## Sécurité et données
 
 - Contacts = données personnelles : accès réservé aux appareils appairés (jeton dans `data/config.json`). Les visiteurs n'accèdent qu'à l'envoi de mots et à la fiche contact.
-- Mots visiteurs : 28 caractères, liens et grossièretés refusés, un envoi toutes les 2,5 s par téléphone, modération depuis la tablette.
+- Mots visiteurs : 28 caractères, liens et grossièretés refusés, envois illimités, modération depuis la tablette.
 - Données dans `data/` (exclu de git) : `db.json`, photos de cartes, certificats. Export CSV en fin de journée depuis l'onglet Contacts.
 - Hors réseau, chaque tablette garde ses saisies et les renvoie à la reconnexion.
 

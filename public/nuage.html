@@ -108,7 +108,9 @@
       } catch (e) {
         msg('err', esc(e.message === 'Failed to fetch' ? 'Pas de connexion au mur. Vérifiez que vous êtes sur le Wi-Fi du stand.' : e.message));
       } finally {
-        setTimeout(() => { busy = false; $('#s').disabled = false; }, 1200);
+        busy = false;
+      $('#s').disabled = false;
+      input.focus();
       }
     }
 
