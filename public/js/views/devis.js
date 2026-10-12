@@ -2,7 +2,7 @@ import { TARIFS_DEFAULT, EVENT_TYPES, opById } from '../data.js';
 import { icon, esc, $, $$, toast, fmtEUR, reduced } from '../ui.js';
 
 let el, ctx;
-const cfg = { type: 'Séminaire', pax: 300, days: 1, opts: new Set(['son', 'lumiere']) };
+const cfg = { type: 'Séminaire', pax: 300, days: 1, opts: new Set(['son', 'lumiere']), msSize: 60 };
 let shown = { min: 0, max: 0 };
 
 const tarifs = () => {
@@ -18,8 +18,9 @@ function compute() {
   const quote = [];
   for (const o of t.options) {
     if (!cfg.opts.has(o.id)) continue;
-    if (o.price == null || o.price === '') quote.push(o.label);
-    else lines.push({ l: o.label, v: Number(o.price) });
+    const label = o.id === 'scene' ? `Scène mobile MediaScène ${cfg.msSize} m²` : o.label;
+    if (o.price == null || o.price === '') quote.push(label);
+    else lines.push({ l: label, v: Number(o.price) });
   }
   const sub = lines.reduce((s, x) => s + x.v, 0);
   const mult = 1 + (cfg.days - 1) * (t.days ?? 0.6);
@@ -93,8 +94,11 @@ function mount(root, c) {
     renderResult();
   });
   $('#dv-opts', el).addEventListener('click', (e) => {
+    const sz = e.target.closest('[data-ms]');
+    if (sz) { cfg.msSize = Number(sz.dataset.ms); update(); return; }
     const s = e.target.closest('[data-opt]');
     if (!s) return;
+    if (s.dataset.opt === 'scene') { cfg.opts.has('scene') ? cfg.opts.delete('scene') : cfg.opts.add('scene'); update(); return; }
     cfg.opts.has(s.dataset.opt) ? cfg.opts.delete(s.dataset.opt) : cfg.opts.add(s.dataset.opt);
     s.setAttribute('aria-checked', cfg.opts.has(s.dataset.opt));
     renderResult();
@@ -193,7 +197,8 @@ function update(reason) {
   if (!el || (reason && !['tarifs', 'hello', 'boot'].includes(reason))) return;
   const t = tarifs();
   $('#dv-opts', el).innerHTML = t.options.map((o) => `<div class="toggle-row"><div class="l"><b>${esc(o.label)}</b><small>${o.price == null ? 'Sur devis' : fmtEUR(o.price) + ' HT'}</small></div>
-    <button class="switch" role="switch" data-opt="${o.id}" aria-checked="${cfg.opts.has(o.id)}" aria-label="${esc(o.label)}"></button></div>`).join('');
+    <button class="switch" role="switch" data-opt="${o.id}" aria-checked="${cfg.opts.has(o.id)}" aria-label="${esc(o.label)}"></button></div>
+    ${o.id === 'scene' && cfg.opts.has('scene') ? `<div class="chips sm" style="padding:0 0 14px" role="radiogroup" aria-label="Taille de la scène">${[60, 80, 100, 120].map((v) => `<button class="chip" role="radio" data-ms="${v}" aria-pressed="${cfg.msSize === v}">${v} m²</button>`).join('')}</div>` : ''}`).join('');
   const valid = t.status === 'VALIDE';
   $('#dv-banner', el).innerHTML = valid ? '' : `<div class="banner" style="margin-bottom:16px">${icon('alert')}<div>Barème à valider par Éric. Estimation indicative, non contractuelle.</div></div>`;
   $('#dv-status', el).innerHTML = valid ? `<span class="led on"></span>validé par ${esc(t.validatedBy)}` : '<span class="led" data-s="warm"></span>à valider';

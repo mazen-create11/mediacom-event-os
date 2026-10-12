@@ -18,7 +18,7 @@ const HEROES = {
   mediascene: {
     photos: MEDIASCENE.photos,
     eyebrow: 'Scène mobile · MediaScène',
-    title: 'La scène mobile, de 60 à 120&nbsp;m².',
+    title: 'La scène mobile, de 60&nbsp;à&nbsp;120&nbsp;m².',
     text: 'Deux formats déployés par vérins hydrauliques : la MediaScène 60&nbsp;m² sur remorque de 3,5&nbsp;t, et la scène 3-en-1 de 80, 100 ou 120&nbsp;m² sur semi-remorque.',
     needs: ['Scène mobile MediaScène'],
   },

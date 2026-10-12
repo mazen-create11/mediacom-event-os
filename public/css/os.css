@@ -584,7 +584,7 @@ textarea.input { height: auto; min-height: 92px; padding: 12px 14px; resize: ver
 .book-hero::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(4, 8, 15, 0.92) 0%, rgba(4, 8, 15, 0.55) 45%, rgba(4, 8, 15, 0.1) 100%), linear-gradient(0deg, rgba(4, 8, 15, 0.8), transparent 50%); }
 @keyframes kb { from { transform: scale(1.04) translate(0, 0); } to { transform: scale(1.12) translate(-1.5%, -1%); } }
 .book-hero .copy { padding: clamp(22px, 3.5vw, 40px); max-width: 640px; }
-.book-hero h2 { margin: 12px 0 10px; font: 500 clamp(30px, 4vw, 48px)/1.05 var(--f-ui); letter-spacing: -0.015em; }
+.book-hero h2 { margin: 12px 0 10px; font: 500 clamp(30px, 4vw, 48px)/1.05 var(--f-ui); letter-spacing: -0.015em; text-wrap: balance; }
 .book-hero p { margin: 0 0 20px; color: var(--text-2); font-size: 16px; max-width: 52ch; }
 .spec-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: var(--r-3); overflow: hidden; border: 1px solid var(--line); }
 .spec { padding: 16px 18px; background: rgba(9, 15, 27, 0.96); }

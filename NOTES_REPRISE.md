@@ -7,6 +7,11 @@ Refonte complète livrée le 12/10/2026 (Claude Code). L'ancienne version est da
 - Hub `server.js` sans dépendance : HTTP :3000 (visiteurs, mur), HTTPS :3443 (équipe, autorité de certification générée dans `data/certs/`), SSE temps réel, appairage par jeton, modération et limitation de débit des mots.
 - Testé le 12/10 : 8 vues + mur (5 scènes) + pages téléphone, 0 erreur console ; parcours saisie → doublon → transfert Mazen → Coraline (toast + badge) ; charge 600 envois en 1,5 s avec 60 écrans abonnés, 0 perte ; HTTPS validé sur l'IP Wi-Fi.
 
+## Passe du 12/10 après-midi
+- Public visé : agences séminaires et événementielles. Profil et volume annuel à la saisie, filtre « Agences », démo et suggestions du mur adaptées.
+- MediaScène : gamme 60 m² (remorque 3,5 t) et 3-en-1 80/100/120 m² (semi-remorque 26 t), chiffres relus dans `~/Desktop/prospection-podium-mobile/07-docs/`. Les fiches 70, 120 et 160 m² du même dossier ne sont pas reprises (hors gamme annoncée).
+- Scène 3D MediaScène déployable, mur (scène MediaScène, message avec compte à rebours), Book à deux ouvertures, bilan `/bilan`, photos 2 880 px.
+
 ## Reste à faire
 - Test réel sur iPad : installation du certificat, caméra (badge QR), ajout à l'écran d'accueil, son du carillon.
 - Mur LED réel : vérifier la sortie 2:1 sur le processeur (Novastar) et la lisibilité à 5 m.
