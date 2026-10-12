@@ -186,7 +186,7 @@ function startReel() {
       if (v && i !== reelI) setTimeout(() => { if (!el.classList.contains('on')) v.pause(); }, 1500);
     });
     const cap = $('.w-reel-cap');
-    $('#w-reel-k').textContent = `${item.type === 'video' ? 'En prestation' : 'Réalisation'} · ${String(reelI + 1).padStart(2, '0')} / ${String(REEL.length).padStart(2, '0')}`;
+    $('#w-reel-k').textContent = `${item.k || (item.type === 'video' ? 'En prestation' : 'Réalisation')} · ${String(reelI + 1).padStart(2, '0')} / ${String(REEL.length).padStart(2, '0')}`;
     $('#w-reel-t').textContent = item.c;
     cap.classList.remove('swap'); void cap.offsetWidth; cap.classList.add('swap');
     const next = () => { reelI = (reelI + 1) % REEL.length; show(); };

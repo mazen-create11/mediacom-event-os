@@ -94,7 +94,13 @@ export const PHOTOS = [
 export const photo = (f, small = false) => `/assets/photos/${f}${small ? '-s' : ''}.jpg`;
 
 // Vidéos de prestations (muettes, en boucle) : remplies quand des vidéos réelles sont fournies
-export const VIDEOS = [];
+export const VIDEOS = [
+  // Clip officiel de la chaîne YouTube « mediacom studio 13 » (intégré sur mediacom.org)
+  { f: 'studio13-plateau', u: 'corporate', k: 'Médiacom Studio 13', c: 'Plateau TV, murs LED et régie lumière', w: 1920, h: 1080, dur: 13.4 },
+  // Concert d'Allauch, juillet 2026 : régie, faisceaux, public (artiste non identifiable). Droits à confirmer par Éric.
+  { f: 'allauch-triptyque', u: 'scene', k: 'Concert en plein air', c: 'Régie, faisceaux et public', w: 1728, h: 864, dur: 9 },
+  { f: 'studio13-regie', u: 'corporate', k: 'Médiacom Studio 13', c: 'Plateaux LED et console son', w: 1920, h: 1080, dur: 7.5 },
+];
 export const video = (f) => `/assets/videos/${f}.mp4`;
 export const poster = (f) => `/assets/videos/${f}.jpg`;
 

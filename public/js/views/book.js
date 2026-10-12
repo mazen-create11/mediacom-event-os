@@ -146,7 +146,7 @@ function renderGallery() {
   $('#bk-gallery', el).innerHTML = current().map((p, i) => `<button class="shot ${p.type === 'video' ? 'is-video' : ''}" data-shot="${i}" aria-label="Agrandir : ${esc(p.c)}" style="animation:rise 600ms var(--ease-out) both;animation-delay:${Math.min(i, 12) * 40}ms">
       <img src="${p.type === 'video' ? poster(p.f) : photo(p.f, true)}" alt="${esc(p.c)}" width="${p.w}" height="${p.h}" loading="lazy" decoding="async">
       ${p.type === 'video' ? `<span class="play">${icon('play')}</span>` : ''}
-      <figcaption><span class="eyebrow">${p.type === 'video' ? 'Vidéo' : esc(label[p.u])}</span>${esc(p.c)}</figcaption></button>`).join('');
+      <figcaption><span class="eyebrow">${p.type === 'video' ? `Vidéo · ${esc(p.k || '')}` : esc(label[p.u])}</span>${esc(p.c)}</figcaption></button>`).join('');
 }
 
 /* ---------- Mode présentation plein écran ---------- */

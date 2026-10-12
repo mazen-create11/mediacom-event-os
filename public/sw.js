@@ -1,7 +1,7 @@
 // Service worker : l'application s'ouvre même si le hub redémarre ou si le Wi-Fi hoquette.
 // Pages, scripts et styles : réseau d'abord (un correctif est pris dès le lancement suivant),
 // cache en secours. Polices, photos, icônes et bibliothèques : cache d'abord. Jamais d'/api.
-const VERSION = 'mc-os-v3.2.0';
+const VERSION = 'mc-os-v3.3.0';
 const CORE = [
   '/', '/index.html', '/nuage.html', '/contact.html', '/master.html', '/mur.html',
   '/css/os.css', '/css/mur.css',
@@ -13,7 +13,7 @@ const CORE = [
   '/assets/logo-m.svg', '/assets/logo-mediascene.png', '/mediacom.vcf', '/manifest.webmanifest',
 ];
 const ALIASES = { '/bilan': '/bilan.html', '/': '/index.html', '/mur': '/mur.html', '/nuage': '/nuage.html', '/master': '/master.html', '/contact': '/contact.html' };
-const STATIC = /^\/(fonts|assets|icons|js\/vendor)\//;
+const STATIC = /^\/(fonts|assets\/(?!videos)|icons|js\/vendor)/; // vidéos : servies par plages, hors cache
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
@@ -25,7 +25,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname === '/setup' || url.pathname === '/setup.html') return;
+  if (e.request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/assets/videos/') || url.pathname === '/setup' || url.pathname === '/setup.html') return;
   const key = ALIASES[url.pathname] || url.pathname;
   e.respondWith((async () => {
     const cache = await caches.open(VERSION);

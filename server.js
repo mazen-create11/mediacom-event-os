@@ -241,7 +241,29 @@ function serveStatic(req, res, pathname) {
     if (req.headers['if-none-match'] === etag) { res.writeHead(304); return res.end(); }
     const ext = path.extname(file).toLowerCase();
     const longCache = /\/(fonts|assets|js\/vendor|icons)\//.test(pathname);
+    // Lecture par plages : indispensable pour que Safari (iPad, iPhone) lise les vidéos
+    const range = req.headers.range;
+    if (range && /^bytes=\d*-\d*$/.test(range)) {
+      const [a0, b0] = range.slice(6).split('-');
+      let start = a0 === '' ? st.size - Number(b0) : Number(a0);
+      let end = a0 !== '' && b0 !== '' ? Number(b0) : st.size - 1;
+      end = Math.min(end, st.size - 1);
+      if (!(start >= 0) || start > end) {
+        res.writeHead(416, { 'Content-Range': `bytes */${st.size}` });
+        return res.end();
+      }
+      res.writeHead(206, {
+        'Content-Type': MIME[ext] || 'application/octet-stream',
+        'Content-Range': `bytes ${start}-${end}/${st.size}`,
+        'Content-Length': end - start + 1,
+        'Accept-Ranges': 'bytes',
+        ETag: etag,
+        'Cache-Control': longCache ? 'public, max-age=604800' : 'no-cache',
+      });
+      return fs.createReadStream(file, { start, end }).pipe(res);
+    }
     res.writeHead(200, {
+      'Accept-Ranges': 'bytes',
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'Content-Length': st.size,
       ETag: etag,
