@@ -118,8 +118,9 @@ function mount(root, c) {
   setInterval(() => { if (el.classList.contains('is-active')) update('tick'); }, 30000);
 }
 
-function update() {
-  if (!el) return;
+function update(reason) {
+  if (!el || reason === 'tarifs' || reason === 'settings') return;
+  if (reason === 'words' || reason === 'wall') return updateWall();
   const { leads, words } = ctx.hub.state;
   const now = Date.now();
   const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
@@ -197,6 +198,14 @@ function update() {
     ? latest.map((l) => leadRow(l, ctx)).join('')
     : `<div class="empty">${LOGO_M}<div><b style="color:var(--text);font-weight:500">Premier contact du salon</b><br>Appuyez sur « Nouveau contact » : 20 secondes suffisent.</div>
         <button class="btn btn-quiet btn-sm" data-demo>Charger une démo</button></div>`;
+}
+
+function updateWall() {
+  const { words } = ctx.hub.state;
+  $('#rg-words', el).textContent = words.filter((w) => !w.hidden).length;
+  $('#rg-sends', el).textContent = words.reduce((s, w) => s + (w.count || 1), 0);
+  const wall = ctx.hub.state.wall || {};
+  $('#rg-wall-state', el).innerHTML = wall.scene === 'black' ? '<span class="led"></span>noir' : `<span class="led" data-s="hot"></span>${wall.accept === false ? 'en pause' : 'en direct'}`;
 }
 
 export default {

@@ -40,7 +40,7 @@
     </ol>
   </main>
   <script type="module">
-    import { LOGO_M, qrSVG, esc } from '/js/ui.js';
+    import { LOGO_M, qrSVG, esc, wifiPayload } from '/js/ui.js';
     document.querySelector('#logo').innerHTML = LOGO_M;
     async function load() {
       let info;
@@ -52,7 +52,7 @@
       else cards.push({ t: 'Équipe', s: 'Ouvrez cette page depuis le Mac du hub (localhost) pour afficher le QR d’appairage.', url: '', cls: 'private' });
       cards.push({ t: 'Mur LED', s: 'À ouvrir sur l’ordinateur du mur.', url: `${info.base}/mur` });
       cards.push({ t: 'Visiteurs', s: 'Envoi de mots sur le mur.', url: `${info.base}/nuage` });
-      if (info.wifi) cards.push({ t: 'Wi-Fi du stand', s: esc(info.wifi.ssid), raw: `WIFI:T:WPA;S:${info.wifi.ssid};P:${info.wifi.pass};;` });
+      if (info.wifi) cards.push({ t: 'Wi-Fi du stand', s: esc(info.wifi.ssid), raw: wifiPayload(info.wifi.ssid, info.wifi.pass) });
       document.querySelector('#cards').innerHTML = cards.map((c, i) => `<article class="module card ${c.cls || ''}" style="animation:rise 600ms var(--ease-out) both;animation-delay:${i * 70}ms">
         <span class="eyebrow"><b>${String(i + 1).padStart(2, '0')}</b> · ${c.t}</span>
         ${c.url || c.raw ? `<div class="qr">${qrSVG(c.raw || c.url, { ecc: 'M', margin: 1 })}</div>` : ''}

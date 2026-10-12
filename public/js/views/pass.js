@@ -1,6 +1,8 @@
 import { COMPANY, OPERATORS, opById } from '../data.js';
 import { icon, esc, $, $$, toast, qrSVG, vcard, download, ago, LOGO_M } from '../ui.js';
 import { attractMinutes, setAttractMinutes } from '../attract.js';
+import { withToken } from '../hub.js';
+import { confirmSheet } from '../ui.js';
 
 let el, ctx, info = null;
 let pick = 'vcard';
@@ -43,8 +45,9 @@ function mount(root, c) {
       <header class="mod-head"><span class="n">02</span><span class="t">Hub du stand</span><span class="r" id="ps-hub"></span></header>
       <div class="mod-body">
         <div class="row" style="align-items:flex-start;gap:18px">
-          <div class="qr" id="ps-pair" style="width:150px;flex:none"></div>
-          <div><b style="font-weight:500">Appairer une tablette</b><p class="muted" style="margin:6px 0 0;font-size:14px">Scannez avec la tablette à ajouter : elle rejoint l’équipe et reçoit les contacts en direct. Ce QR donne accès aux données du stand, ne le montrez pas au public.</p></div>
+          <div class="qr" id="ps-pair" style="width:150px;height:150px;flex:none;position:relative;overflow:hidden"></div>
+          <div><b style="font-weight:500">Appairer une tablette</b><p class="muted" style="margin:6px 0 12px;font-size:14px">Ce QR donne accès à tous les contacts du stand : il reste masqué, s’affiche 30 secondes à la demande, jamais face au public.</p>
+            <div class="row wrap"><button class="btn btn-quiet btn-sm" id="ps-reveal">${icon('eye')}Afficher 30 s</button><button class="btn btn-danger btn-sm" id="ps-rotate">Changer le code</button></div></div>
         </div>
         <div class="divider"></div>
         <div class="field"><span class="lbl">Mode vitrine de cette tablette</span>
@@ -77,6 +80,13 @@ function mount(root, c) {
     if (!b) return;
     setAttractMinutes(Number(b.dataset.m));
     $$('[data-m]', el).forEach((x) => x.setAttribute('aria-pressed', x === b));
+  });
+  $('#ps-reveal', el).addEventListener('click', () => renderPair(true));
+  $('#ps-rotate', el).addEventListener('click', async () => {
+    const ok = await confirmSheet({ title: 'Changer le code d’appairage ?', text: 'Toutes les autres tablettes et téléphones de l’équipe seront déconnectés et devront scanner le nouveau QR. À faire si le QR a été vu par quelqu’un d’extérieur.', ok: 'Changer le code', danger: true });
+    if (!ok) return;
+    try { await ctx.hub.rotateToken(); await loadInfo(); toast({ title: 'Nouveau code actif', text: 'Appairez de nouveau les autres appareils.', tone: 'live' }); }
+    catch { toast({ title: 'Impossible sans le hub', tone: 'off' }); }
   });
   $('#ps-vcf', el).addEventListener('click', () => download('Mediacom-Marseille.vcf', CARD, 'text/vcard'));
   $('#ps-full', el).addEventListener('click', fullQR);
@@ -118,16 +128,26 @@ function fullQR() {
   document.addEventListener('keydown', onKey);
 }
 
+let revealTimer = 0;
+function renderPair(show = false) {
+  const box = $('#ps-pair', el);
+  clearTimeout(revealTimer);
+  if (!info?.pairUrl) { box.innerHTML = '<p style="font-size:12px;padding:8px;color:#333">Appairez d’abord cette tablette</p>'; return; }
+  box.innerHTML = show ? qrSVG(info.pairUrl, { ecc: 'M', margin: 1 })
+    : `<div style="position:absolute;inset:0;display:grid;place-items:center;background:repeating-linear-gradient(45deg,#e9eef6 0 8px,#f6f8fb 8px 16px);color:#46546a"><span style="width:34px;height:34px;display:block">${icon('eyeOff')}</span></div>`;
+  if (show) revealTimer = setTimeout(() => renderPair(false), 30000);
+}
+
 async function loadInfo() {
   if (ctx.hub.state.mode === 'local') { $('#ps-pair', el).innerHTML = '<p class="dim" style="font-size:12px;padding:8px;color:#333">Hub non lancé</p>'; return; }
   try {
-    info = await (await fetch('/api/info', { cache: 'no-store' })).json();
-    $('#ps-pair', el).innerHTML = info.pairUrl ? qrSVG(info.pairUrl, { ecc: 'M', margin: 1 }) : '<p style="font-size:12px;padding:8px;color:#333">Appairez d’abord cette tablette</p>';
+    info = await (await fetch(withToken('/api/info'), { cache: 'no-store' })).json();
+    renderPair();
   } catch { /* hors ligne */ }
 }
 
-function update() {
-  if (!el) return;
+function update(reason) {
+  if (!el || ['words', 'wall', 'tarifs', 'lead', 'lead:delete'].includes(reason)) return;
   const s = ctx.hub.state.settings || {};
   const set = (id, v) => { const i = $(id, el); if (document.activeElement !== i) i.value = v || ''; };
   set('#ps-ev', s.eventName === 'Salon' ? '' : s.eventName);

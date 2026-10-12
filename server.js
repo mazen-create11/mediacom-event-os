@@ -34,27 +34,67 @@ function readJSON(file, fallback) {
 const config = readJSON(CONFIG_FILE, null) || { token: crypto.randomBytes(9).toString('base64url') };
 fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
 
+const BAK_FILE = path.join(DATA, 'db.bak.json');
+
+// Une base illisible n'est jamais écrasée : elle est mise de côté et le hub repart de la sauvegarde.
+function loadDB() {
+  if (!fs.existsSync(DB_FILE)) return readJSON(BAK_FILE, {});
+  try {
+    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+  } catch {
+    const keep = path.join(DATA, `db.illisible-${Date.now()}.json`);
+    fs.renameSync(DB_FILE, keep);
+    const bak = readJSON(BAK_FILE, null);
+    console.error(`[hub] data/db.json illisible, mis de côté dans ${path.basename(keep)}. ${bak ? 'Reprise sur la sauvegarde db.bak.json.' : 'Pas de sauvegarde : les tablettes renverront leurs contacts.'}`);
+    return bak || {};
+  }
+}
+
 const db = Object.assign(
   {
     leads: [],
     words: [],
+    deleted: {},
     wall: { scene: 'cloud', accept: true, message: '', question: '', photo: 'scene-m-rouge', updatedAt: 0 },
     settings: { eventName: 'Salon', wifiSsid: '', wifiPass: '', publicUrl: '' },
     tarifs: null,
   },
-  readJSON(DB_FILE, {})
+  loadDB()
 );
 
 let saveTimer = null;
+let saveError = null;
+let lastSaveAlert = 0;
+function writeNow() {
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  const tmp = DB_FILE + '.tmp';
+  try {
+    const fd = fs.openSync(tmp, 'w');
+    fs.writeSync(fd, JSON.stringify(db));
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    fs.renameSync(tmp, DB_FILE);
+    saveError = null;
+  } catch (e) {
+    saveError = e.message;
+    console.error('[hub] écriture de la base impossible :', e.message);
+    if (Date.now() - lastSaveAlert > 60000) {
+      lastSaveAlert = Date.now();
+      broadcast('alert', { from: 'Hub', text: 'Le Mac du hub n’arrive plus à enregistrer (disque plein ?). Exportez le CSV maintenant.', to: 'all', at: Date.now() }, { staffOnly: true });
+    }
+  }
+}
 function save() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    const tmp = DB_FILE + '.tmp';
-    fs.writeFile(tmp, JSON.stringify(db), (err) => {
-      if (err) return console.error('Écriture db échouée', err);
-      fs.rename(tmp, DB_FILE, (e) => e && console.error('Renommage db échoué', e));
-    });
-  }, 250);
+  saveTimer = setTimeout(writeNow, 250);
+}
+// Sauvegarde tournante, seulement à partir d'un fichier relu avec succès
+setInterval(() => {
+  try { JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); fs.copyFileSync(DB_FILE, BAK_FILE); } catch { /* rien à sauvegarder */ }
+}, 120000);
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(sig, () => { if (saveTimer) writeNow(); process.exit(0); });
 }
 
 /* ---------- Temps réel (Server-Sent Events) ---------- */
@@ -102,7 +142,12 @@ setInterval(() => {
 
 function isLocal(req) {
   const a = req.socket.remoteAddress || '';
-  return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
+  if (a !== '127.0.0.1' && a !== '::1' && a !== '::ffff:127.0.0.1') return false;
+  // Un tunnel (cloudflared, ngrok…) arrive lui aussi par 127.0.0.1 : il ajoute ces en-têtes ou un autre Host
+  const h = req.headers;
+  if (h['x-forwarded-for'] || h['cf-connecting-ip'] || h['x-real-ip'] || h.forwarded) return false;
+  const host = String(h.host || '').replace(/:\d+$/, '').replace(/^\[|\]$/g, '');
+  return host === 'localhost' || host === '127.0.0.1' || host === '::1';
 }
 
 function tokenOf(req, url) {
@@ -208,20 +253,27 @@ function serveStatic(req, res, pathname) {
 }
 
 function csvCell(v) {
-  const s = Array.isArray(v) ? v.join(', ') : v == null ? '' : String(v);
+  let s = Array.isArray(v) ? v.join(', ') : v == null ? '' : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   return `"${s.replace(/"/g, '""')}"`;
 }
 
 /* ---------- Logique métier ---------- */
 
+const LOCKED = ['operator', 'transfer', 'history', 'createdAt', 'capturedBy'];
 function upsertLead(input) {
   if (!input || typeof input.id !== 'string' || !/^[\w-]{4,64}$/.test(input.id)) throw new Error('id_invalide');
+  if (db.deleted[input.id]) { const e = new Error('supprimé'); e.code = 410; throw e; }
   const prev = db.leads.find((l) => l.id === input.id);
-  const lead = Object.assign({}, prev || {}, input, { updatedAt: Date.now() });
+  const patch = { ...input };
+  if (prev) for (const k of LOCKED) delete patch[k]; // seul /api/transfer change le suivi
+  const lead = Object.assign({}, prev || {}, patch, { updatedAt: Date.now() });
+  if (!lead.createdAt) lead.createdAt = lead.updatedAt;
   if (typeof lead.cardPhoto === 'string' && lead.cardPhoto.startsWith('data:image/jpeg;base64,')) {
     fs.writeFileSync(path.join(CARDS, `${lead.id}.jpg`), Buffer.from(lead.cardPhoto.split(',')[1], 'base64'));
     lead.cardPhoto = `/api/cards/${lead.id}.jpg`;
   }
+  delete lead.cardPhotoPending;
   if (prev) db.leads[db.leads.indexOf(prev)] = lead;
   else db.leads.unshift(lead);
   save();
@@ -273,6 +325,16 @@ const tls = ensureCerts();
 /* ---------- Routeur ---------- */
 
 async function handler(req, res) {
+  try {
+    await route(req, res);
+  } catch (e) {
+    console.error('[hub]', req.method, req.url, e.message);
+    if (!res.headersSent) res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Requête invalide');
+  }
+}
+
+async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const p = url.pathname;
   const staff = isStaff(req, url);
@@ -293,7 +355,7 @@ async function handler(req, res) {
 
   try {
     /* --- Public --- */
-    if (p === '/api/health') return json(res, 200, { ok: true, staff, time: Date.now() });
+    if (p === '/api/health') return json(res, 200, { ok: !saveError, staff, time: Date.now(), saveError: staff ? saveError : undefined });
 
     if (p === '/api/info') {
       const lan = lanAddresses();
@@ -332,7 +394,7 @@ async function handler(req, res) {
       };
       clients.add(c);
       if (wantsStaff) {
-        send(res, 'hello', { leads: db.leads, words: db.words, wall: db.wall, settings: db.settings, tarifs: db.tarifs, presence: presence(), serverTime: Date.now() });
+        send(res, 'hello', { leads: db.leads, deleted: Object.keys(db.deleted), words: db.words, wall: db.wall, settings: db.settings, tarifs: db.tarifs, presence: presence(), serverTime: Date.now() });
         broadcast('presence', presence(), { staffOnly: true });
       } else {
         send(res, 'wall', publicWall());
@@ -357,12 +419,21 @@ async function handler(req, res) {
       save();
       broadcast('words', db.words.filter((x) => !x.hidden));
       broadcast('words:all', db.words, { staffOnly: true });
-      broadcast('word', w);
+      if (!w.hidden) broadcast('word', w);
       return json(res, 200, { ok: true, word: w });
     }
 
     /* --- Équipe uniquement --- */
     if (!staff) return json(res, 401, { error: 'appairage requis' });
+
+    if (p === '/api/token/rotate' && req.method === 'POST') {
+      const { device } = await readBody(req, 4096);
+      config.token = crypto.randomBytes(9).toString('base64url');
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+      for (const c of clients) if (c.staff && c.device !== device) { send(c.res, 'revoked', {}); c.res.end(); clients.delete(c); }
+      res.setHeader('Set-Cookie', `mc_t=${encodeURIComponent(config.token)}; Path=/; Max-Age=31536000; SameSite=Lax; HttpOnly`);
+      return json(res, 200, { ok: true, token: config.token });
+    }
 
     if (p === '/api/state') return json(res, 200, { leads: db.leads, words: db.words, wall: db.wall, settings: db.settings, tarifs: db.tarifs, presence: presence() });
 
@@ -373,7 +444,11 @@ async function handler(req, res) {
     }
 
     if (p === '/api/leads' && req.method === 'POST') {
-      const lead = upsertLead(await readBody(req));
+      let lead;
+      try { lead = upsertLead(await readBody(req)); } catch (e) {
+        if (e.code === 410) return json(res, 410, { error: 'contact supprimé' });
+        throw e;
+      }
       broadcast('lead', lead, { staffOnly: true });
       return json(res, 200, { ok: true, lead });
     }
@@ -381,6 +456,8 @@ async function handler(req, res) {
     let m;
     if ((m = /^\/api\/leads\/([\w-]+)$/.exec(p)) && req.method === 'DELETE') {
       db.leads = db.leads.filter((l) => l.id !== m[1]);
+      db.deleted[m[1]] = Date.now();
+      fs.rm(path.join(CARDS, `${m[1]}.jpg`), { force: true }, () => {});
       save();
       broadcast('lead:delete', { id: m[1] }, { staffOnly: true });
       return json(res, 200, { ok: true });

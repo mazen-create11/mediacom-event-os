@@ -2,7 +2,7 @@
 // Lit le flux public du hub (aucune donnée personnelle), ou le stockage local hors hub.
 import { wallFeed } from './hub.js';
 import { PHOTOS, MEDIASCENE, COMPANY, photo } from './data.js';
-import { LOGO_M, qrSVG, esc } from './ui.js';
+import { LOGO_M, qrSVG, esc, wifiPayload } from './ui.js';
 
 const preview = new URLSearchParams(location.search).has('preview');
 if (preview) document.body.classList.add('preview');
@@ -35,7 +35,7 @@ function renderJoin() {
   const wifi = state.info?.wifi;
   const steps = [];
   if (wifi?.ssid) {
-    steps.push(`<div class="w-step"><b>1 · Wi-Fi</b><div class="qr">${qrSVG(`WIFI:T:WPA;S:${wifi.ssid};P:${wifi.pass};;`, { ecc: 'M', margin: 1 })}</div><span>Rejoignez le réseau du stand</span><small>${esc(wifi.ssid)}</small></div>`);
+    steps.push(`<div class="w-step"><b>1 · Wi-Fi</b><div class="qr">${qrSVG(wifiPayload(wifi.ssid, wifi.pass), { ecc: 'M', margin: 1 })}</div><span>Rejoignez le réseau du stand</span><small>${esc(wifi.ssid)}</small></div>`);
   }
   steps.push(`<div class="w-step"><b>${wifi?.ssid ? '2 · ' : ''}Votre mot</b><div class="qr">${qrSVG(url, { ecc: 'M', margin: 1 })}</div><span>Flashez, écrivez, regardez-le apparaître</span><small>${esc(url.replace(/^https?:\/\//, ''))}</small></div>`);
   $('#w-steps').innerHTML = steps.join('');
@@ -203,37 +203,48 @@ function applyWall() {
   const w = state.wall || {};
   setScene(w.scene || 'cloud');
   $('#w-message').textContent = w.message || 'Bienvenue sur le stand Médiacom';
-  if (w.question) $('#w-question').textContent = w.question;
+  $('#w-question').textContent = w.question || 'Votre prochain événement, en un mot\u00a0?';
   const bg = $('#w-photo');
   const ph = w.photo || 'scene-m-rouge';
   if (bg.dataset.f !== ph) { bg.dataset.f = ph; bg.classList.remove('on'); setTimeout(() => { bg.style.backgroundImage = `url('${photo(ph)}')`; bg.classList.add('on'); }, 400); }
 }
 
-function showLast(w, pop = false) {
-  if (!w) return;
+// Encart « dernier mot reçu » : toujours le plus récent des mots visibles, vide si le mur est vidé
+function showLast(pop = false) {
+  const w = state.words.filter((x) => !x.hidden).sort((a, b) => (b.at || 0) - (a.at || 0))[0];
   const box = $('#w-last');
-  $('#w-last-t').textContent = w.text;
-  box.hidden = !!$('#w-steps.two');
-  if (pop) { box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop'); }
+  const t = $('#w-last-t');
+  const changedText = t.textContent !== (w?.text || '');
+  t.textContent = w?.text || '';
+  box.hidden = !w || !!$('#w-steps.two');
+  if (pop && w && changedText) { box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop'); }
 }
 
 function applyWords() {
-  if (!$('#w-last-t').textContent) showLast([...state.words].sort((a, b) => b.at - a.at)[0]);
+  showLast();
   $('#w-sends').textContent = new Intl.NumberFormat('fr-FR').format(state.words.reduce((s, w) => s + (w.count || 1), 0));
   if (current === 'cloud') fontReady.then(layout);
 }
 
-wallFeed((d) => {
+function onData(d) {
   if (d.wall) { state.wall = d.wall; applyWall(); }
-  if (d.words) { state.words = d.words; applyWords(); }
-  if (d.word) {
+  if (d.words) { state.words = d.words.filter((w) => !w.hidden); applyWords(); }
+  if (d.word && !d.word.hidden) {
     const i = state.words.findIndex((w) => w.id === d.word.id);
     if (i >= 0) state.words[i] = d.word; else state.words.push(d.word);
     applyWords();
-    showLast(d.word, true);
+    showLast(true);
     fontReady.then(() => setTimeout(() => spotlight(d.word.id), 60));
   }
-});
+}
+
+// L'aperçu dans la tablette reçoit ses données de l'application (pas de connexion de plus au hub)
+if (preview) {
+  addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.type === 'mc-wall') onData(e.data); });
+  parent.postMessage({ type: 'mc-wall-ready' }, location.origin);
+} else {
+  wallFeed(onData);
+}
 
 new ResizeObserver(() => current === 'cloud' && layout()).observe(wallEl);
 loadInfo();

@@ -189,8 +189,8 @@ function printQuote() {
   w.document.close();
 }
 
-function update() {
-  if (!el) return;
+function update(reason) {
+  if (!el || (reason && !['tarifs', 'hello', 'boot'].includes(reason))) return;
   const t = tarifs();
   $('#dv-opts', el).innerHTML = t.options.map((o) => `<div class="toggle-row"><div class="l"><b>${esc(o.label)}</b><small>${o.price == null ? 'Sur devis' : fmtEUR(o.price) + ' HT'}</small></div>
     <button class="switch" role="switch" data-opt="${o.id}" aria-checked="${cfg.opts.has(o.id)}" aria-label="${esc(o.label)}"></button></div>`).join('');

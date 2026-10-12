@@ -161,21 +161,24 @@ function detailHTML(l) {
   </div>`;
 }
 
-function bindDetail(host, l) {
+// La fiche est relue au moment du clic : jamais d'action sur une copie périmée
+function bindDetail(host, id) {
   host.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-act]');
     if (!b) return;
+    const l = ctx.hub.state.leads.find((x) => x.id === id);
+    if (!l) return;
     const act = b.dataset.act;
-    if (act === 'temp') { await ctx.hub.saveLead({ id: l.id, temperature: b.dataset.t }); }
+    if (act === 'temp') ctx.hub.saveLead({ id: l.id, temperature: b.dataset.t });
     if (act === 'ack') { await ctx.hub.ack(l.id); toast({ title: 'Contact pris en charge', tone: 'live' }); }
     if (act === 'transfer') transferSheet(l);
     if (act === 'qr') qrSheet(l);
-    if (act === 'edit') { closeDrawer(); ctx.newLead(l); }
+    if (act === 'edit') { await closeDrawer({ force: true }); ctx.newLead(l); }
     if (act === 'delete') {
       if (!(await confirmSheet({ title: `Supprimer ${l.name || 'ce contact'} ?`, text: 'La fiche disparaît de toutes les tablettes du stand. Cette action est définitive.', ok: 'Supprimer', danger: true }))) return;
-      await ctx.hub.deleteLead(l.id);
+      ctx.hub.deleteLead(l.id);
       ui.selected = null;
-      closeDrawer();
+      closeDrawer({ force: true });
       toast({ title: 'Contact supprimé', tone: 'cold' });
     }
   });
@@ -192,7 +195,7 @@ function renderDetail() {
   const fresh = host.cloneNode(false);
   fresh.innerHTML = detailHTML(l);
   host.replaceWith(fresh);
-  bindDetail(fresh, l);
+  bindDetail(fresh, l.id);
 }
 
 function select(id) {
@@ -203,8 +206,8 @@ function select(id) {
   if (wide()) { renderDetail(); return; }
   openDrawer(`<div class="drawer-head"><span class="eyebrow">Fiche contact</span><span class="spacer"></span><button class="btn btn-quiet btn-icon btn-sm" data-close aria-label="Fermer">${icon('x')}</button></div>
     <div class="drawer-body" style="padding:0">${detailHTML(l)}</div>`, {
-    label: 'Fiche contact',
-    onMount: (d) => { d.querySelector('[data-close]').onclick = closeDrawer; bindDetail(d.querySelector('.drawer-body'), l); },
+    label: 'Fiche contact', kind: 'lead', lead: id,
+    onMount: (d) => { d.querySelector('[data-close]').onclick = () => closeDrawer(); bindDetail(d.querySelector('.drawer-body'), id); },
   });
 }
 
@@ -253,7 +256,11 @@ function qrSheet(l) {
 }
 
 function exportLocal() {
-  const cell = (v) => `"${String(Array.isArray(v) ? v.join(', ') : v ?? '').replace(/"/g, '""')}"`;
+  const cell = (v) => {
+    let s = String(Array.isArray(v) ? v.join(', ') : v ?? '');
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // pas de formule exécutée à l'ouverture dans Excel
+    return `"${s.replace(/"/g, '""')}"`;
+  };
   const head = ['Enregistré le', 'Nom', 'Société', 'Fonction', 'Téléphone', 'Email', 'Événement', 'Période', 'Jauge', 'Budget', 'Besoins', 'Potentiel', 'Suivi par', 'Notes'];
   const rows = ctx.hub.state.leads.filter((l) => !l.demo).map((l) => [new Date(l.createdAt).toLocaleString('fr-FR'), l.name, l.company, l.role, l.phone, l.email, l.eventType, l.period, l.audience, l.budget, l.needs, TEMPS[l.temperature]?.label, opById(l.operator).name, l.notes].map(cell).join(';'));
   download(`mediacom-contacts-${new Date().toISOString().slice(0, 10)}.csv`, '﻿' + [head.map(cell).join(';'), ...rows].join('\r\n'), 'text/csv;charset=utf-8');
@@ -275,11 +282,20 @@ export async function loadDemo(c) {
   toast({ title: 'Démo chargée', text: '5 contacts marqués « démo », exclus de l’export CSV.', tone: 'blue' });
 }
 
+const IGNORE = new Set(['words', 'wall', 'tarifs', 'settings', 'presence']);
 function update(reason) {
-  if (!el) return;
+  if (!el || IGNORE.has(reason)) return;
   renderList();
-  if (wide()) renderDetail();
-  else if (reason === 'lead:delete' && !ctx.hub.state.leads.some((l) => l.id === ui.selected)) closeDrawer();
+  if (wide()) { renderDetail(); return; }
+  // Tiroir ouvert sur une fiche : on le tient à jour, ou on le ferme si la fiche a disparu
+  const d = $('#drawer');
+  if (d.dataset.kind !== 'lead' || !d.classList.contains('is-open')) return;
+  const l = ctx.hub.state.leads.find((x) => x.id === d.dataset.lead);
+  if (!l) { closeDrawer({ force: true }); return; }
+  const body = d.querySelector('.drawer-body');
+  const y = body.scrollTop;
+  body.innerHTML = detailHTML(l);
+  body.scrollTop = y;
 }
 
 export default {

@@ -1,11 +1,14 @@
 import { EVENT_TYPES, NEEDS, AUDIENCE, BUDGETS, TEMPS, opById } from '../data.js';
 import { icon, esc, $, $$, toast, openDrawer, closeDrawer, ago } from '../ui.js';
 import { markFresh } from './contacts.js';
+import { withToken } from '../hub.js';
 
 let stream = null;
 let scanRAF = 0;
+let camGen = 0; // invalide toute ouverture de caméra encore en cours
 
 function stopCamera() {
+  camGen++;
   cancelAnimationFrame(scanRAF);
   scanRAF = 0;
   stream?.getTracks().forEach((t) => t.stop());
@@ -42,6 +45,9 @@ export function openCapture(ctx, prefill = null) {
   const editing = !!prefill?.id && ctx.hub.state.leads.some((l) => l.id === prefill.id);
   const l = prefill || {};
   let photo = l.cardPhoto || null;
+  const leadId = l.id || ctx.hub.newId(); // fixé à l'ouverture : un double appui ne crée pas de doublon
+  let dirty = false;
+  let saving = false;
   let temperature = l.temperature || 'warm';
 
   const html = `<div class="drawer-head">
@@ -86,17 +92,21 @@ export function openCapture(ctx, prefill = null) {
 
   openDrawer(html, {
     label: editing ? 'Modifier le contact' : 'Nouveau contact',
+    kind: 'capture',
+    guard: () => !dirty || saving,
     onMount(d) {
       const form = $('#cap-form', d);
       const val = (n) => form.elements[n]?.value.trim() || '';
 
-      d.querySelectorAll('[data-close]').forEach((b) => (b.onclick = closeDrawer));
+      d.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => closeDrawer()));
+      form.addEventListener('input', () => { dirty = true; });
       setTimeout(() => $('#f-name', d)?.focus({ preventScroll: true }), editing ? 0 : 380);
 
       // Puces simples et multiples
       form.addEventListener('click', (e) => {
         const chip = e.target.closest('.chip');
         if (!chip) return;
+        dirty = true;
         const group = chip.parentElement;
         if (group.dataset.single) {
           const on = chip.getAttribute('aria-pressed') !== 'true';
@@ -109,6 +119,7 @@ export function openCapture(ctx, prefill = null) {
         const b = e.target.closest('[data-t]');
         if (!b) return;
         temperature = b.dataset.t;
+        dirty = true;
         $$('[data-t]', d).forEach((x) => x.setAttribute('aria-pressed', x === b));
       });
 
@@ -135,14 +146,17 @@ export function openCapture(ctx, prefill = null) {
         dupe.innerHTML = hit ? `<div class="banner">${icon('alert')}<div style="flex:1">Déjà saisi par <b>${esc(opById(hit.capturedBy || hit.operator).name)}</b> ${ago(hit.createdAt)} : ${esc(hit.name || '')}${hit.company ? ', ' + esc(hit.company) : ''}.</div><button type="button" class="btn btn-quiet btn-sm" data-open="${hit.id}">Ouvrir</button></div>` : '';
       };
       ['name', 'company', 'phone', 'email'].forEach((n) => form.elements[n].addEventListener('input', checkDupe));
-      dupe.addEventListener('click', (e) => { const b = e.target.closest('[data-open]'); if (b) { closeDrawer(); ctx.openLead(b.dataset.open); } });
+      dupe.addEventListener('click', async (e) => {
+        const b = e.target.closest('[data-open]');
+        if (b && (await closeDrawer())) ctx.openLead(b.dataset.open);
+      });
 
       // Photo de carte
       const photoHost = $('#cap-photo', d);
       const renderPhoto = () => {
-        photoHost.innerHTML = photo ? `<div class="field"><span class="lbl">Carte de visite</span><div class="row" style="align-items:flex-start"><img src="${photo}" alt="Carte de visite" style="width:180px;border-radius:10px;border:1px solid var(--line-2)"><button type="button" class="btn btn-quiet btn-sm" data-rm-photo>${icon('trash')}Retirer</button></div></div>` : '';
+        photoHost.innerHTML = photo ? `<div class="field"><span class="lbl">Carte de visite</span><div class="row" style="align-items:flex-start"><img src="${esc(photo.startsWith('/api/') ? withToken(photo) : photo)}" alt="Carte de visite" style="width:180px;border-radius:10px;border:1px solid var(--line-2)"><button type="button" class="btn btn-quiet btn-sm" data-rm-photo>${icon('trash')}Retirer</button></div></div>` : '';
         const rm = photoHost.querySelector('[data-rm-photo]');
-        if (rm) rm.onclick = () => { photo = null; renderPhoto(); };
+        if (rm) rm.onclick = () => { photo = null; dirty = true; renderPhoto(); };
       };
       renderPhoto();
 
@@ -173,12 +187,13 @@ export function openCapture(ctx, prefill = null) {
         if (!f) return;
         const img = await createImageBitmap(f).catch(() => null);
         if (!img) return toast({ title: 'Image illisible', tone: 'off' });
-        if (fileMode === 'card') { photo = toJPEG(img); renderPhoto(); toast({ title: 'Carte ajoutée à la fiche', tone: 'live' }); }
+        if (fileMode === 'card') { photo = toJPEG(img); dirty = true; renderPhoto(); toast({ title: 'Carte ajoutée à la fiche', tone: 'live' }); }
         else decodeStill(img);
       });
 
       async function setMode(mode) {
         stopCamera();
+        const gen = camGen;
         if (mode === 'express') { cam.hidden = true; cam.innerHTML = ''; return; }
         cam.hidden = false;
         const label = mode === 'badge' ? 'Cadrez le QR code du badge visiteur' : 'Cadrez la carte de visite, à plat et éclairée';
@@ -191,14 +206,18 @@ export function openCapture(ctx, prefill = null) {
         const fb = cam.querySelector('[data-file]');
         if (fb) { fb.onclick = () => { fileMode = mode; fileInput.click(); }; return; }
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+          const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+          // Mode changé ou tiroir fermé pendant l'autorisation : on coupe tout de suite
+          if (gen !== camGen || !d.isConnected || d.dataset.kind !== 'capture') { s.getTracks().forEach((t) => t.stop()); return; }
+          stream = s;
           const video = cam.querySelector('video');
           video.srcObject = stream;
           await video.play().catch(() => {});
           if (mode === 'badge') scanLoop(video);
           const snap = cam.querySelector('[data-snap]');
-          if (snap) snap.onclick = () => { photo = toJPEG(video); renderPhoto(); toast({ title: 'Carte ajoutée à la fiche', tone: 'live' }); };
+          if (snap) snap.onclick = () => { photo = toJPEG(video); dirty = true; renderPhoto(); toast({ title: 'Carte ajoutée à la fiche', tone: 'live' }); };
         } catch {
+          if (gen !== camGen) return;
           cam.innerHTML = `<div class="banner">${icon('alert')}<div>Caméra indisponible ici. Utilisez l’appareil photo de la tablette.</div></div><div class="row mt-2"><button type="button" class="btn btn-primary" data-file>${icon('camera')}Ouvrir l’appareil photo</button></div>`;
           cam.querySelector('[data-file]').onclick = () => { fileMode = mode; fileInput.click(); };
         }
@@ -251,26 +270,29 @@ export function openCapture(ctx, prefill = null) {
 
       function toJPEG(src) {
         const w0 = src.videoWidth || src.width, h0 = src.videoHeight || src.height;
-        const s = Math.min(1, 1280 / Math.max(w0, h0));
+        const s = Math.min(1, 1100 / Math.max(w0, h0));
         const c = document.createElement('canvas');
         c.width = Math.round(w0 * s); c.height = Math.round(h0 * s);
         c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
-        return c.toDataURL('image/jpeg', 0.82);
+        return c.toDataURL('image/jpeg', 0.78);
       }
 
       // Enregistrement
-      d.querySelector('#cap-save').onclick = save;
-      async function save() {
+      const saveBtn = d.querySelector('#cap-save');
+      saveBtn.onclick = save;
+      function save() {
+        if (saving) return;
         const pick = (name) => form.querySelector(`[data-single="${name}"] [aria-pressed="true"]`)?.dataset.v || '';
         const lead = {
-          id: l.id || ctx.hub.newId(),
+          id: leadId,
           name: val('name'), company: val('company'), role: val('role'),
           phone: val('phone').replace(/\s+/g, ' '), email: val('email').toLowerCase(),
           eventType: pick('eventType'), audience: pick('audience'), budget: pick('budget'),
           needs: $$('[data-multi="needs"] [aria-pressed="true"]', form).map((c) => c.dataset.v),
           period: val('period'), notes: val('notes'), temperature,
-          cardPhoto: photo,
         };
+        // Photo envoyée seulement si elle a changé : une photo encore en attente d'envoi n'est jamais écrasée
+        if (photo !== (l.cardPhoto || null)) lead.cardPhoto = photo;
         if (!lead.name && !lead.company && !lead.phone && !lead.email) {
           toast({ title: 'Fiche vide', text: 'Renseignez au moins un nom, une société, un téléphone ou un e-mail.', tone: 'warm' });
           $('#f-name', d).focus();
@@ -282,10 +304,12 @@ export function openCapture(ctx, prefill = null) {
           return;
         }
         if (!editing) { lead.operator = ctx.me().id; lead.capturedBy = ctx.me().id; }
+        saving = true;
+        saveBtn.disabled = true;
         stopCamera();
         markFresh(lead.id);
-        await ctx.hub.saveLead(lead);
-        closeDrawer();
+        ctx.hub.saveLead(lead); // enregistré sur la tablette tout de suite, envoyé au hub ensuite
+        closeDrawer({ force: true });
         toast({
           title: editing ? 'Fiche mise à jour' : 'Contact enregistré',
           text: `${esc(lead.name || lead.company)}${ctx.hub.state.status === 'online' ? ' · visible sur toutes les tablettes' : ''}`,

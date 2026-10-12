@@ -106,9 +106,21 @@ export function toast({ title, text = '', tone = 'blue', timeout = 3600, actions
 
 /* ---------- Tiroir latéral ---------- */
 let drawerCleanup = null;
-export function openDrawer(html, { onMount, label = 'Fiche' } = {}) {
+let drawerGuard = null; // renvoie true si le tiroir peut se fermer sans perte
+
+// Ne remplace jamais une saisie en cours : renvoie false et prévient
+export function openDrawer(html, { onMount, label = 'Fiche', kind = '', lead = '', guard = null } = {}) {
   const d = $('#drawer');
   const s = $('#scrim');
+  if (drawerOpen() && drawerGuard && !drawerGuard()) {
+    toast({ title: 'Saisie en cours', text: 'Enregistrez ou annulez le contact en cours d’abord.', tone: 'warm' });
+    return false;
+  }
+  drawerCleanup?.();
+  drawerCleanup = null;
+  drawerGuard = guard;
+  d.dataset.kind = kind;
+  d.dataset.lead = lead;
   d.innerHTML = html;
   d.setAttribute('aria-label', label);
   d.classList.remove('is-closing');
@@ -116,16 +128,25 @@ export function openDrawer(html, { onMount, label = 'Fiche' } = {}) {
   requestAnimationFrame(() => { d.classList.add('is-open'); s.classList.add('is-open'); });
   d.querySelector('[data-close]')?.focus({ preventScroll: true });
   drawerCleanup = onMount?.(d) || null;
+  return true;
 }
-export function closeDrawer() {
+export async function closeDrawer({ force = false } = {}) {
   const d = $('#drawer');
-  if (!d.classList.contains('is-open')) return;
+  if (!d.classList.contains('is-open')) return true;
+  if (!force && drawerGuard && !drawerGuard()) {
+    const ok = await confirmSheet({ title: 'Abandonner ce contact ?', text: 'Les informations déjà saisies seront perdues.', ok: 'Abandonner', danger: true });
+    if (!ok) return false;
+  }
+  drawerGuard = null;
+  d.dataset.kind = '';
+  d.dataset.lead = '';
   d.classList.add('is-closing');
   d.classList.remove('is-open');
   $('#scrim').classList.remove('is-open');
   drawerCleanup?.();
   drawerCleanup = null;
   setTimeout(() => { if (!d.classList.contains('is-open')) d.hidden = true; }, 260);
+  return true;
 }
 export const drawerOpen = () => $('#drawer')?.classList.contains('is-open');
 
@@ -188,6 +209,12 @@ export function qrSVG(text, { ecc = 'M', margin = 2, dark = '#04080f' } = {}) {
   let d = '';
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + margin} ${r + margin}h1v1h-1z`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges"><rect width="${size}" height="${size}" fill="#fff"/><path fill="${dark}" d="${d}"/></svg>`;
+}
+
+// Format standard des QR Wi-Fi : caractères spéciaux échappés, réseau ouvert sans mot de passe
+export function wifiPayload(ssid, pass) {
+  const e = (v) => String(v ?? '').replace(/([\\;,:"])/g, '\\$1');
+  return pass ? `WIFI:T:WPA;S:${e(ssid)};P:${e(pass)};;` : `WIFI:T:nopass;S:${e(ssid)};;`;
 }
 
 export function download(name, content, type) {

@@ -135,7 +135,17 @@ function refreshAll(reason) {
   renderBadge();
   $('#tc-event').textContent = hub.state.settings?.eventName || 'Salon';
 }
-hub.on('change', refreshAll);
+hub.on('change', (reason) => { refreshAll(reason); if (['hello', 'words', 'wall', 'settings'].includes(reason)) feedPreviews(); });
+
+// Aperçus du mur (iframes) : nourris par l'app, sans flux réseau supplémentaire
+const wallData = () => ({ type: 'mc-wall', wall: hub.state.wall, words: hub.state.words.filter((w) => !w.hidden), eventName: hub.state.settings?.eventName });
+function feedPreviews(extra) {
+  for (const f of document.querySelectorAll('iframe[src^="/mur.html"]')) f.contentWindow?.postMessage({ ...wallData(), ...extra }, location.origin);
+}
+addEventListener('message', (e) => {
+  if (e.origin === location.origin && e.data?.type === 'mc-wall-ready') e.source?.postMessage(wallData(), location.origin);
+});
+hub.on('word', (w) => feedPreviews({ word: w }));
 
 function pendingTransfers() {
   const me = ctx.me().id;
@@ -185,7 +195,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 $('#go').addEventListener('click', () => ctx.newLead());
-$('#scrim').addEventListener('click', closeDrawer);
+$('#scrim').addEventListener('click', () => closeDrawer());
 document.addEventListener('pointerdown', unlockAudio, { once: true });
 document.addEventListener('visibilitychange', () => document.body.classList.toggle('is-hidden', document.hidden));
 

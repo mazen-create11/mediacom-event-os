@@ -115,8 +115,8 @@ function renderWords() {
     : '<p class="dim" style="margin:0">Aucun mot pour l’instant. Le mur affiche des mots d’amorce en attendant les visiteurs.</p>';
 }
 
-function update() {
-  if (!el) return;
+function update(reason) {
+  if (!el || (reason && !['words', 'wall', 'hello', 'boot'].includes(reason))) return;
   const w = ctx.hub.state.wall || {};
   $$('[data-scene]', el).forEach((b) => (b.dataset.scene === (w.scene || 'cloud') ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current')));
   $$('[data-scene]', el).forEach((b) => b.setAttribute('aria-checked', b.dataset.scene === (w.scene || 'cloud')));

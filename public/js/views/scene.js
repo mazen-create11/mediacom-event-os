@@ -1,7 +1,7 @@
 // Configurateur 3D : plateau, mur LED incurvé animé, truss, lyres et faisceaux, brume, salle.
 import { icon, esc, $, $$, toast, download, reduced } from '../ui.js';
 
-let el, ctx, T = null, world = null;
+let el, ctx, T = null, world = null, building = null, active = false;
 const conf = { format: 'pleniere', width: 8, pitch: 2.6, theme: 'bleu', lyres: 6, haze: true, auto: true };
 const THEMES = {
   bleu: { a: 0x3192ff, b: 0x9fd0ff, label: 'Bleu Médiacom' },
@@ -452,16 +452,17 @@ export default {
   id: 'scene', title: 'Scène 3D', short: 'Scène 3D', sub: 'Plateau, mur LED et lumière en temps réel', icon: 'scene',
   mount,
   async enter() {
+    active = true;
     if (!world) {
-      try { await build(); } catch (e) {
+      try { await (building ||= build()); } catch (e) {
         console.error(e);
         const l = $('#s3-loading', el);
         if (l) l.textContent = 'La 3D n’est pas disponible sur cet appareil.';
         return;
       }
     }
-    world.start();
+    if (active && !document.hidden) world.start();
   },
-  leave() { world?.stop(); },
+  leave() { active = false; world?.stop(); },
 };
-document.addEventListener('visibilitychange', () => { if (!world) return; if (document.hidden) world.stop(); else if (el?.classList.contains('is-active')) world.start(); });
+document.addEventListener('visibilitychange', () => { if (!world) return; if (document.hidden) world.stop(); else if (active) world.start(); });
