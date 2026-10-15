@@ -64,6 +64,7 @@ function mount(root, c) {
             <div class="field"><label for="ps-pass">Mot de passe Wi-Fi</label><input class="input" id="ps-pass" placeholder="Mot de passe" autocapitalize="off"></div>
           </div>
           <div class="field"><label for="ps-pub">Adresse publique (option)</label><input class="input" id="ps-pub" placeholder="https://… si un tunnel internet est actif" autocapitalize="off" inputmode="url"></div>
+          <div class="toggle-row"><div class="l"><b>Tout le book</b><small>Par défaut, seules les références séminaires, soirées et mises en lumière sont montrées. Réaffiche concerts, festivals et gala sportif (décision Éric).</small></div><button type="button" class="switch" role="switch" id="ps-bookall" aria-label="Tout le book" aria-checked="false"></button></div>
           <p class="dim" style="font-size:12.5px;margin:0">Le Wi-Fi renseigné ajoute un QR « Rejoindre le Wi-Fi » sur le mur : sans lui, seuls les visiteurs déjà connectés au réseau du stand peuvent envoyer un mot.</p>
           <div class="row"><button class="btn btn-primary btn-sm">${icon('check')}Enregistrer</button><a class="btn btn-quiet btn-sm" href="/setup" target="_blank" rel="noopener">${icon('link')}Page d’appairage</a></div>
         </form>
@@ -93,6 +94,11 @@ function mount(root, c) {
   $('#ps-settings', el).addEventListener('submit', (e) => {
     e.preventDefault();
     ctx.hub.setSettings({ eventName: $('#ps-ev', el).value.trim() || 'Salon', wifiSsid: $('#ps-ssid', el).value.trim(), wifiPass: $('#ps-pass', el).value, publicUrl: $('#ps-pub', el).value.trim().replace(/\/$/, '') });
+  });
+  $('#ps-bookall', el).addEventListener('click', () => {
+    const on = !(ctx.hub.state.settings?.bookAll === true);
+    ctx.hub.setSettings({ bookAll: on });
+    toast({ title: on ? 'Tout le book est visible' : 'Book séminaire', text: on ? 'Concerts, festivals et gala sportif réapparaissent dans le Book et le showreel.' : 'Retour à la sélection séminaire.', tone: 'blue' });
     toast({ title: 'Réglages enregistrés', text: 'Le mur LED se met à jour.', tone: 'live' });
     loadInfo();
   });
@@ -154,6 +160,7 @@ function update(reason) {
   set('#ps-ssid', s.wifiSsid);
   set('#ps-pass', s.wifiPass);
   set('#ps-pub', s.publicUrl);
+  $('#ps-bookall', el)?.setAttribute('aria-checked', s.bookAll === true);
   const st = ctx.hub.state.status;
   $('#ps-hub', el).innerHTML = `<span class="led" data-s="${st === 'online' ? 'live' : st === 'local' ? 'cold' : 'off'}"></span>${{ online: 'en ligne', local: 'mode local', offline: 'hors ligne', connecting: 'connexion', unpaired: 'non appairée' }[st]}`;
   const devs = ctx.hub.state.presence;

@@ -58,39 +58,42 @@ export const TEMPS = {
 };
 
 // Univers du book et photos réelles issues de mediacom.org (légendes génériques, à valider par Éric)
+// Salon du séminaire (relecture Nolan, 13/10/2026) : concerts, festivals, fan zone et gala sportif
+// sortent du book et du showreel. `sem: false` les garde en réserve ; l'onglet Pass peut les réafficher.
 export const UNIVERS = [
   { id: 'all', label: 'Tout' },
   { id: 'corporate', label: 'Séminaires & conventions' },
   { id: 'gala', label: 'Soirées & galas' },
   { id: 'lumiere', label: 'Mises en lumière' },
-  { id: 'scene', label: 'Concerts & plein air' },
+  { id: 'scene', label: 'Concerts & plein air', reserve: true },
 ];
 
 export const PHOTOS = [
   { f: 'convention-palais', u: 'corporate', c: 'Convention, écran et sonorisation', w: 2880, h: 2363 },
   { f: 'gala-award', u: 'gala', c: 'Remise de prix, écran LED et lumière', w: 2880, h: 1620 },
   { f: 'pleniere-palais', u: 'corporate', c: 'Plénière, installation avant ouverture', w: 2880, h: 2304 },
-  { f: 'scene-m-rouge', u: 'scene', c: 'Plateau, structure et lumière', w: 2880, h: 2390 },
+  { f: 'scene-m-rouge', u: 'scene', c: 'Plateau, structure et lumière', w: 2880, h: 2390, sem: false },
   { f: 'facade-violette', u: 'lumiere', c: 'Mise en lumière de façade, Marseille', credit: 'Sophie Vernet', w: 2880, h: 1827 },
   { f: 'soiree-jardin', u: 'gala', c: 'Réception en jardin, éclairage d’ambiance', w: 2160, h: 2880 },
-  { f: 'regie-concert', u: 'scene', c: 'Régie façade, concert en salle', w: 2880, h: 1917 },
+  { f: 'regie-concert', u: 'scene', c: 'Régie façade, concert en salle', w: 2880, h: 1917, sem: false },
   { f: 'facade-bleu-rose', u: 'lumiere', c: 'Mise en lumière de façade, Marseille', w: 2880, h: 2160 },
-  { f: 'gala-ring', u: 'gala', c: 'Gala sportif, ring et écran géant', w: 2160, h: 2880 },
-  { f: 'plateau-bleu-rouge', u: 'scene', c: 'Plateau, faisceaux et fumée', w: 2880, h: 1614 },
+  { f: 'gala-ring', u: 'gala', c: 'Gala sportif, ring et écran géant', w: 2160, h: 2880, sem: false },
+  { f: 'plateau-bleu-rouge', u: 'scene', c: 'Plateau, faisceaux et fumée', w: 2880, h: 1614, sem: false },
   { f: 'soiree-piscine', u: 'gala', c: 'Soirée en terrasse, mise en lumière', w: 1845, h: 2880 },
   { f: 'artifices-notre-dame', u: 'lumiere', c: 'Artifices, drones et lasers à Marseille', w: 2880, h: 2189 },
-  { f: 'festival-plein-air', u: 'scene', c: 'Festival en plein air', w: 2880, h: 1921 },
+  { f: 'festival-plein-air', u: 'scene', c: 'Festival en plein air', w: 2880, h: 1921, sem: false },
   { f: 'lasers', u: 'lumiere', c: 'Show lasers', w: 2880, h: 1921 },
-  { f: 'concert-camargue', u: 'scene', c: 'Concert, scène et écran', w: 2880, h: 2160 },
+  { f: 'concert-camargue', u: 'scene', c: 'Concert, scène et écran', w: 2880, h: 2160, sem: false },
   { f: 'facade-rouge', u: 'lumiere', c: 'Projection de façade pour les fêtes', w: 2304, h: 2880 },
-  { f: 'fan-zone-marseille', u: 'scene', c: 'Fan zone UEFA Euro 2016, Marseille', credit: 'Benjamin Gayté-Sorbier', w: 2880, h: 1920 },
+  { f: 'fan-zone-marseille', u: 'scene', c: 'Fan zone UEFA Euro 2016, Marseille', credit: 'Benjamin Gayté-Sorbier', w: 2880, h: 1920, sem: false },
   { f: 'artifices-port', u: 'lumiere', c: 'Spectacle pyrotechnique sur le port', w: 2880, h: 1920 },
-  { f: 'faisceaux-rouges', u: 'scene', c: 'Ambiance faisceaux', w: 2880, h: 1614 },
-  { f: 'concert-plage', u: 'scene', c: 'Concert en bord de mer', w: 2880, h: 1919 },
-  { f: 'vieux-port-scene', u: 'scene', c: 'Grande scène en centre-ville', w: 2880, h: 1927 },
+  { f: 'faisceaux-rouges', u: 'scene', c: 'Ambiance faisceaux', w: 2880, h: 1614, sem: false },
+  { f: 'concert-plage', u: 'scene', c: 'Concert en bord de mer', w: 2880, h: 1919, sem: false },
+  { f: 'vieux-port-scene', u: 'scene', c: 'Grande scène en centre-ville', w: 2880, h: 1927, sem: false },
   { f: 'facade-bleue', u: 'lumiere', c: 'Mise en lumière en extérieur', w: 2160, h: 2880 },
-  { f: 'concert-couchant', u: 'scene', c: 'Concert au coucher du soleil', w: 2160, h: 2880 },
+  { f: 'concert-couchant', u: 'scene', c: 'Concert au coucher du soleil', w: 2160, h: 2880, sem: false },
 ];
+export const isSem = (p) => p.sem !== false;
 export const photo = (f, small = false) => `/assets/photos/${f}${small ? '-s' : ''}.jpg`;
 
 // Vidéos de prestations (muettes, en boucle) : remplies quand des vidéos réelles sont fournies
@@ -98,15 +101,16 @@ export const VIDEOS = [
   // Clip officiel de la chaîne YouTube « mediacom studio 13 » (intégré sur mediacom.org)
   { f: 'studio13-plateau', u: 'corporate', k: 'Médiacom Studio 13', c: 'Plateau TV, murs LED et régie lumière', w: 1920, h: 1080, dur: 13.4 },
   // Concert d'Allauch, juillet 2026 : régie, faisceaux, public (artiste non identifiable). Droits à confirmer par Éric.
-  { f: 'allauch-triptyque', u: 'scene', k: 'Concert en plein air', c: 'Régie, faisceaux et public', w: 1728, h: 864, dur: 9 },
+  { f: 'allauch-triptyque', u: 'scene', k: 'Concert en plein air', c: 'Régie, faisceaux et public', w: 1728, h: 864, dur: 9, sem: false },
   { f: 'studio13-regie', u: 'corporate', k: 'Médiacom Studio 13', c: 'Plateaux LED et console son', w: 1920, h: 1080, dur: 7.5 },
 ];
 export const video = (f) => `/assets/videos/${f}.mp4`;
 export const poster = (f) => `/assets/videos/${f}.jpg`;
 
-// MediaScène : fiches techniques 60 m² et 3-en-1 80/100/120 m², note de calcul 60 m²
+// MediaScène : fiches techniques 60 m², 3-en-1 80/100/120 m² et SM 160 m² avec régie, note de calcul 60 m²
 export const MEDIASCENE = {
-  range: 'De 60 à 120 m²',
+  range: 'De 60 à 160 m²',
+  sizes: [60, 80, 100, 120, 160],
   photos: [
     { f: 'mediascene-concert', c: 'MediaScène 60 m², concert en plein air' },
     { f: 'mediascene-vieux-port', c: 'MediaScène sur le Vieux-Port, Marseille' },
@@ -153,6 +157,26 @@ export const MEDIASCENE = {
         { v: '75 km/h', l: 'Homologation, version bâchée' },
         { v: '1,20 à 1,70 m', l: 'Hauteur de plancher' },
         { v: '26 t', l: 'Semi-remorque, hydraulique' },
+      ],
+    },
+    {
+      id: 'ms160', label: '160 m²', name: 'Scène 160 avec régie', sizes: [160],
+      deck: { 160: [13.5, 10.5] }, clearance: 8, deckH: 1.2, trailer: 13.8,
+      key: [
+        { v: '13,50 × 10,50 m', l: 'Plateau de 156 m²' },
+        { v: '6 t', l: 'Charge en toiture' },
+        { v: '100 km/h', l: 'Vent, sans bâche latérale' },
+        { v: '5 h 30', l: 'Montage, à 4 personnes' },
+      ],
+      specs: [
+        { v: '13,50 × 10,50 m', l: 'Plateau de 156 m², régie intégrée' },
+        { v: '38 t', l: 'Semi-remorque 3 essieux, 13,80 m' },
+        { v: '750 kg/m²', l: 'Résistance du plancher, bouleau 18 mm' },
+        { v: '6 t', l: 'Charge en toiture, poutre 500 tri' },
+        { v: '8 m', l: 'Hauteur sous toiture' },
+        { v: '1,2 t', l: 'Accroche line array par côté' },
+        { v: '100 · 70 km/h', l: 'Vent : sans bâche · bâchée' },
+        { v: '5 h 30', l: 'Montage, à 4 personnes' },
       ],
     },
   ],

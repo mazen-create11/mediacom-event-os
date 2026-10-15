@@ -35,7 +35,7 @@
       <li><b>Wi-Fi.</b> Branchez le routeur du stand, connectez ce Mac et les tablettes au même réseau, puis renseignez son nom et son mot de passe dans l’onglet Pass de l’application.</li>
       <li><b>Certificat.</b> Une seule fois par iPad : scannez le QR « Certificat », installez le profil, puis activez la confiance dans Réglages › Général › Informations › Réglages des certificats. Sans lui, l’app fonctionne mais sans caméra en direct ni cache hors-ligne.</li>
       <li><b>Tablettes.</b> Sur chaque iPad, scannez le QR « Équipe » avec l’appareil photo, ouvrez le lien, puis Partager → Sur l’écran d’accueil.</li>
-      <li><b>Mur LED.</b> Sur l’ordinateur relié au processeur LED, ouvrez l’adresse « Mur LED » dans Chrome, puis double-cliquez pour passer en plein écran.</li>
+      <li><b>Écran LED.</b> Sur l’ordinateur relié au boîtier vidéo, ouvrez l’adresse « Écran LED » dans Chrome, puis double-cliquez (ou touche F) pour passer en plein écran. La tablette change la scène, l’écran suit.</li>
       <li><b>Fin de journée.</b> Exportez les contacts en CSV depuis l’onglet Contacts. Les données restent aussi dans le dossier <code>data/</code> de l’application.</li>
     </ol>
   </main>
@@ -50,8 +50,8 @@
       if (info.caUrl) cards.push({ t: 'Certificat iPad', s: 'Ouvrez sur chaque iPad, puis Réglages › Profil téléchargé › Installer, et Réglages › Général › Informations › Réglages des certificats › activer « Mediacom Stand CA ».', url: info.caUrl });
       if (info.pairUrl) cards.push({ t: 'Équipe', s: 'Tablettes et iPhone de l’équipe. Ne pas afficher au public.', url: info.pairUrl, cls: 'private' });
       else cards.push({ t: 'Équipe', s: 'Ouvrez cette page depuis le Mac du hub (localhost) pour afficher le QR d’appairage.', url: '', cls: 'private' });
-      cards.push({ t: 'Mur LED', s: 'À ouvrir sur l’ordinateur du mur.', url: `${info.base}/mur` });
-      cards.push({ t: 'Visiteurs', s: 'Envoi de mots sur le mur.', url: `${info.base}/nuage` });
+      cards.push({ t: 'Écran LED', s: 'À ouvrir dans Chrome sur l’ordinateur relié au boîtier vidéo. Il suit la scène choisie sur la tablette. Une scène figée : /ecran/nuage, /ecran/sondage, /ecran/questions, /ecran/showreel, /ecran/message, /ecran/noir.', url: `${info.base}/ecran` });
+      cards.push({ t: 'Visiteurs', s: 'Nuage de mots, sondage et questions depuis le téléphone.', url: `${info.base}/nuage` });
       if (info.wifi) cards.push({ t: 'Wi-Fi du stand', s: esc(info.wifi.ssid), raw: wifiPayload(info.wifi.ssid, info.wifi.pass) });
       document.querySelector('#cards').innerHTML = cards.map((c, i) => `<article class="module card ${c.cls || ''}" style="animation:rise 600ms var(--ease-out) both;animation-delay:${i * 70}ms">
         <span class="eyebrow"><b>${String(i + 1).padStart(2, '0')}</b> · ${c.t}</span>

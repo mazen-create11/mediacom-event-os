@@ -1,0 +1,5 @@
+# Sorties dédiées de l'écran (ordinateur du mur) et page visiteur.
+# Cibles sans .html : Cloudflare Pages renvoie un 308 vers l'adresse courte sinon (piège noté le 15/09).
+/ecran        /mur    200
+/ecran/*      /mur    200
+/live         /nuage  200

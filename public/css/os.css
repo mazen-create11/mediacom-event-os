@@ -790,3 +790,46 @@ textarea.input { height: auto; min-height: 92px; padding: 12px 14px; resize: ver
   .ambient .beam { display: none; }
   .book-hero img, .show .slide.on img { animation: none; transform: none; }
 }
+
+/* =========================================================================
+   ÉCRAN (régie de l'écran LED, 15/10/2026) : aperçu plein cadre, habillage, sondage, questions
+   ========================================================================= */
+.wall-big .wall-preview { width: min(100%, calc((100dvh - var(--top) - 2 * var(--pad) - 180px) * 2)); min-width: 60%; margin: 0 auto; }
+.wall-big .wall-full-btn { right: auto; left: 50%; transform: translateX(-50%); bottom: 12px; opacity: 0.85; }
+.th-key { min-height: 68px; }
+.th-dot { display: block; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line-3); }
+.th-dot[data-style='sobre'] { background: radial-gradient(90% 70% at 50% 115%, #0d1f3f, #070b14 68%); }
+.th-dot[data-style='lumiere'] { background: conic-gradient(from 200deg, #02050b, #1670e4, #69adff, #02050b); }
+.th-dot[data-style='uni'] { background: #0a2f6b; }
+.th-dot[data-style='degrade'] { background: linear-gradient(135deg, #0a2f6b, #3192ff); }
+.th-dot[data-style='photo'] { background: url('/assets/photos/convention-palais-s.jpg') center / cover; }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatch { position: relative; width: 34px; height: 34px; border-radius: 50%; background: var(--c); border: 1px solid rgba(255, 255, 255, 0.18); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25); transition: transform var(--d-1) var(--ease-out), box-shadow var(--d-2); }
+.swatch[aria-pressed='true'] { transform: scale(1.1); box-shadow: 0 0 0 2px var(--night), 0 0 0 4px var(--blue); }
+.swatch.custom { display: grid; place-items: center; background: repeating-conic-gradient(#1b2740 0 25%, #0d1626 0 50%) 0 0 / 10px 10px; color: var(--text-2); font: 600 16px/1 var(--f-mono); cursor: pointer; }
+.swatch.custom input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.bars { display: flex; flex-direction: column; gap: 10px; }
+.bar-row { display: grid; grid-template-columns: minmax(0, 1fr) 2fr 56px 34px; align-items: center; gap: 12px; font-size: 14px; }
+.bar-row .l { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar-row .track { height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.bar-row .track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #1d6fe0, var(--blue)); transform-origin: 0 50%; transform: scaleX(var(--v, 0)); transition: transform 800ms var(--ease-spring); }
+.bar-row.lead .track i { background: linear-gradient(90deg, var(--blue), #9cc8ff); box-shadow: 0 0 10px var(--glow); }
+.bar-row b { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.bar-row small { font-size: 11px; text-align: right; }
+.q-list { display: flex; flex-direction: column; gap: 8px; }
+.q-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 10px 10px 12px; border-radius: var(--r-2); background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line); }
+.q-row .v { font-size: 16px; font-weight: 600; color: var(--blue-2); text-align: center; }
+.q-row .t p { margin: 0 0 3px; font-size: 14px; line-height: 1.3; }
+.q-row .t small { font-size: 11px; }
+.q-row .a { display: flex; gap: 6px; }
+.q-row .a [aria-pressed='true'] { border-color: var(--blue); color: #fff; background: rgba(49, 146, 255, 0.15); }
+.q-row.is-hidden { opacity: 0.5; }
+.q-row.is-done .t p { color: var(--text-3); text-decoration: line-through; }
+.q-row.is-pin { border-color: rgba(49, 146, 255, 0.45); }
+.links { display: flex; flex-direction: column; gap: 8px; }
+.link-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 10px; border-radius: var(--r-2); border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); }
+.link-row.main { border-color: rgba(49, 146, 255, 0.45); background: rgba(49, 146, 255, 0.06); }
+.link-row .qr.sm { padding: 5px; border-radius: 6px; width: 64px; box-shadow: none; }
+.link-row b { display: block; font-weight: 500; font-size: 14px; }
+.link-row code { display: block; margin-top: 3px; font: 500 11.5px/1.3 var(--f-mono); color: var(--blue-2); overflow-wrap: anywhere; }
+@media (max-width: 1100px) { #mw-scenes { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; } }

@@ -3,58 +3,67 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Médiacom · Mur LED</title>
+  <title>Médiacom · Écran</title>
   <meta name="theme-color" content="#000000">
   <link rel="icon" href="/assets/logo-m.svg" type="image/svg+xml">
   <link rel="preload" href="/fonts/jost.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/jbmono-600.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/os.css">
   <link rel="stylesheet" href="/css/mur.css">
   <script type="module" src="/js/mur.js"></script>
 </head>
 <body class="wall-page">
-  <div class="wall" id="wall">
+  <div class="wall" id="wall" data-theme="sobre">
     <div class="w-bg" aria-hidden="true">
       <div class="w-photo" id="w-photo"></div>
-      <i class="w-beam a"></i><i class="w-beam b"></i><i class="w-beam c"></i><i class="w-beam d"></i>
-      <i class="w-haze"></i>
+      <div class="w-beams"><i class="w-beam a"></i><i class="w-beam b"></i><i class="w-beam c"></i><i class="w-beam d"></i><i class="w-haze"></i></div>
     </div>
 
+    <!-- En-tête : marque Médiacom, ou logo du client quand l'écran est habillé à ses couleurs -->
     <header class="w-head">
-      <div class="w-brand"><span class="w-m" id="w-m"></span><span class="w-word">MEDIACOM</span><span class="w-base">Le son · la lumière · l’image</span></div>
-      <div class="w-live"><span class="w-dot"></span><span>En direct</span><span class="w-sep"></span><span id="w-sends">0</span>&nbsp;<span class="w-dim">mots envoyés</span></div>
+      <div class="w-brand" id="w-brand"></div>
+      <div class="w-live" id="w-live"><span class="w-dot"></span><span>En direct</span><span class="w-sep"></span><span id="w-sends">0</span>&nbsp;<span class="w-dim" id="w-sends-l">participations</span></div>
     </header>
 
-    <!-- Scène 1 : nuage de mots -->
+    <!-- Titre de l'activité : nuage, sondage, questions -->
+    <div class="w-title" id="w-title"><p class="w-kicker" id="w-title-k">Participez</p><h2 id="w-question"></h2><p class="w-closed" id="w-closed" hidden>Réponses closes · merci</p></div>
+
+    <!-- Scène : nuage de mots -->
     <section class="w-scene" data-scene="cloud">
       <div class="w-cloud" id="w-cloud" aria-live="polite"></div>
-      <aside class="w-join">
-        <p class="w-kicker">Participez</p>
-        <h2 class="w-question" id="w-question">Votre prochain événement, en un mot&nbsp;?</h2>
-        <div class="w-steps" id="w-steps"></div>
-        <div class="w-last" id="w-last" hidden><span class="w-kicker">Dernier mot reçu</span><b id="w-last-t"></b></div>
-      </aside>
+      <div class="w-last" id="w-last" hidden><span class="w-kicker">Dernier mot reçu</span><b id="w-last-t"></b></div>
     </section>
 
-    <!-- Scène 2 : showreel photo -->
+    <!-- Scène : sondage -->
+    <section class="w-scene" data-scene="poll">
+      <div class="w-poll" id="w-poll"></div>
+      <p class="w-poll-foot" id="w-poll-foot"></p>
+    </section>
+
+    <!-- Scène : questions du public -->
+    <section class="w-scene" data-scene="questions">
+      <div class="w-qa" id="w-qa"></div>
+    </section>
+
+    <!-- Scène : showreel -->
     <section class="w-scene" data-scene="reel">
       <div class="w-reel" id="w-reel"></div>
       <div class="w-reel-cap"><p class="w-kicker" id="w-reel-k"></p><h2 id="w-reel-t"></h2></div>
-      <div class="w-mini-join" id="w-mini-join"></div>
     </section>
 
-    <!-- Scène 3 : MediaScène -->
+    <!-- Scène : MediaScène -->
     <section class="w-scene" data-scene="mediascene">
       <div class="w-ms-photo" id="w-ms-photo"></div>
       <p class="w-ms-cap" id="w-ms-cap"></p>
       <div class="w-ms-copy">
         <div class="w-ms-brand"><img class="w-ms-logo" src="/assets/logo-mediascene.png" alt=""><p class="w-kicker">Scène mobile · MediaScène</p></div>
-        <h2>La scène mobile,<br>de <em>60 à 120&nbsp;m²</em>.</h2>
+        <h2>La scène mobile,<br>de <em>60 à 160&nbsp;m²</em>.</h2>
         <div class="w-ms-ruler" id="w-ms-ruler" aria-hidden="true"></div>
         <div class="w-ms-cards" id="w-ms-cards"></div>
       </div>
     </section>
 
-    <!-- Scène 4 : message -->
+    <!-- Scène : message -->
     <section class="w-scene" data-scene="message">
       <div class="w-msg-bg" id="w-msg-bg"></div>
       <svg class="w-msg-m" viewBox="0 0 256 242" aria-hidden="true"><path d="M0 0L128.6 134L256 0V110.4L130.6 241L0 110.1Z M0 152.4V242H80.3Z M256 152.5V242H175.9Z"/></svg>
@@ -66,8 +75,14 @@
       </div>
     </section>
 
-    <!-- Scène 5 : noir -->
+    <!-- Scène : page externe (outil de Nolan ou tout autre lien) -->
+    <section class="w-scene" data-scene="external"><iframe class="w-ext" id="w-ext" title="Contenu externe" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe><p class="w-ext-empty" id="w-ext-empty" hidden>Aucun lien externe renseigné dans l’onglet Écran.</p></section>
+
+    <!-- Scène : noir -->
     <section class="w-scene" data-scene="black"></section>
+
+    <!-- Participation : QR + adresse, présent sur toutes les scènes interactives -->
+    <aside class="w-join" id="w-join"></aside>
 
     <footer class="w-ticker" aria-hidden="true"><div class="w-track" id="w-track"></div></footer>
   </div>

@@ -137,12 +137,12 @@ function refreshAll(reason) {
   renderBadge();
   $('#tc-event').textContent = hub.state.settings?.eventName || 'Salon';
 }
-hub.on('change', (reason) => { refreshAll(reason); if (['hello', 'words', 'wall', 'settings'].includes(reason)) feedPreviews(); });
+hub.on('change', (reason) => { refreshAll(reason); if (['hello', 'words', 'wall', 'poll', 'questions', 'settings'].includes(reason)) feedPreviews(); });
 
 // Aperçus du mur (iframes) : nourris par l'app, sans flux réseau supplémentaire
-const wallData = () => ({ type: 'mc-wall', wall: hub.state.wall, words: hub.state.words.filter((w) => !w.hidden), eventName: hub.state.settings?.eventName });
+const wallData = () => ({ type: 'mc-wall', wall: hub.state.wall, words: hub.state.words.filter((w) => !w.hidden), poll: hub.state.poll, questions: (hub.state.questions || []).filter((q) => !q.hidden), eventName: hub.state.settings?.eventName });
 function feedPreviews(extra) {
-  for (const f of document.querySelectorAll('iframe[src^="/mur"]')) f.contentWindow?.postMessage({ ...wallData(), ...extra }, location.origin);
+  for (const f of document.querySelectorAll('iframe[src^="/mur"], iframe[src^="/ecran"]')) f.contentWindow?.postMessage({ ...wallData(), ...extra }, location.origin);
 }
 addEventListener('message', (e) => {
   if (e.origin === location.origin && e.data?.type === 'mc-wall-ready') e.source?.postMessage(wallData(), location.origin);

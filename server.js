@@ -58,9 +58,17 @@ const db = Object.assign(
     wall: { scene: 'cloud', accept: true, message: '', question: '', photo: 'scene-m-rouge', updatedAt: 0 },
     settings: { eventName: 'Salon', wifiSsid: '', wifiPass: '', publicUrl: '' },
     tarifs: null,
+    // Activités interactives (relecture Nolan 13/10) : sondage à choix et mur de questions
+    poll: null,          // { id, title, options: [{ id, label }], open, multiple, at }
+    pollVotes: {},       // pollId -> participant -> [optionId]
+    questions: [],       // { id, text, votes, voters: [participant], hidden, answered, at }
+    wordsBy: {},         // participant -> nombre de mots (limite par personne, 0 = illimité)
   },
   loadDB()
 );
+// Valeurs ajoutées après la première mise en service : complétées sans écraser l'existant
+db.wall = Object.assign({ maxPerPerson: 0, reelSet: 'seminaire', externalUrl: '', qaTitle: '', qaOpen: true, theme: { style: 'sobre', c1: '#0a2f6b', c2: '#3192ff', brand: true, logo: '', client: '' } }, db.wall);
+db.wall.theme = Object.assign({ style: 'sobre', c1: '#0a2f6b', c2: '#3192ff', brand: true, logo: '', client: '' }, db.wall.theme || {});
 
 let saveTimer = null;
 let saveError = null;
@@ -121,9 +129,23 @@ function presence() {
   return [...seen.values()];
 }
 
-function publicWall() {
-  return { wall: db.wall, words: db.words.filter((w) => !w.hidden), eventName: db.settings.eventName };
+function pollPublic() {
+  if (!db.poll) return null;
+  const votes = db.pollVotes[db.poll.id] || {};
+  const counts = Object.fromEntries(db.poll.options.map((o) => [o.id, 0]));
+  let total = 0;
+  for (const list of Object.values(votes)) for (const id of list) if (id in counts) { counts[id] += 1; total += 1; }
+  return { id: db.poll.id, title: db.poll.title, open: db.poll.open !== false, multiple: !!db.poll.multiple, at: db.poll.at, total, voters: Object.keys(votes).length, options: db.poll.options.map((o) => ({ ...o, count: counts[o.id] })) };
 }
+const qPublic = (q) => ({ id: q.id, text: q.text, votes: q.votes || 0, answered: !!q.answered, pinned: !!q.pinned, at: q.at });
+function questionsPublic() {
+  return db.questions.filter((q) => !q.hidden).map(qPublic);
+}
+function publicWall() {
+  return { wall: db.wall, words: db.words.filter((w) => !w.hidden), poll: pollPublic(), questions: questionsPublic(), eventName: db.settings.eventName };
+}
+const pidOf = (b) => String(b?.pid || '').replace(/[^\w-]/g, '').slice(0, 40) || 'anonyme';
+const cleanText = (raw, max) => String(raw || '').replace(/\s+/g, ' ').trim().slice(0, max);
 
 process.on('uncaughtException', (e) => console.error('[hub] erreur non gérée', e));
 process.on('unhandledRejection', (e) => console.error('[hub] promesse rejetée', e));
@@ -166,6 +188,14 @@ function cleanWord(raw) {
   return { text };
 }
 
+// Habillage de l'écran : style de fond, deux couleurs, logo client (image déjà réduite par la tablette, 60 ko max)
+const THEME_STYLES = new Set(['sobre', 'lumiere', 'uni', 'degrade', 'photo']);
+function cleanTheme(t) {
+  const hex = (v, d) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v).toLowerCase() : d);
+  const logo = typeof t.logo === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(t.logo) && t.logo.length < 80000 ? t.logo : '';
+  return { style: THEME_STYLES.has(t.style) ? t.style : 'sobre', c1: hex(t.c1, '#0a2f6b'), c2: hex(t.c2, '#3192ff'), brand: t.brand !== false, logo, client: cleanText(t.client, 40) };
+}
+
 /* ---------- Utilitaires HTTP ---------- */
 
 function json(res, status, data) {
@@ -205,11 +235,13 @@ const MIME = {
   '.woff2': 'font/woff2', '.vcf': 'text/vcard; charset=utf-8', '.ico': 'image/x-icon', '.mp4': 'video/mp4',
 };
 
-const ALIASES = { '/': '/index.html', '/mur': '/mur.html', '/display.html': '/mur.html', '/nuage': '/nuage.html', '/client.html': '/nuage.html',
+const ALIASES = { '/': '/index.html', '/mur': '/mur.html', '/display.html': '/mur.html', '/nuage': '/nuage.html', '/client.html': '/nuage.html', '/live': '/nuage.html',
   '/master': '/master.html', '/bilan': '/bilan.html', '/contact': '/contact.html', '/setup': '/setup.html' };
+// Sorties dédiées pour l'ordinateur du mur (Nolan) : /ecran suit la tablette, /ecran/<scène> reste figé sur une scène
+const ECRAN = /^\/ecran(\/[a-z-]+)?$/;
 
 function serveStatic(req, res, pathname) {
-  pathname = ALIASES[pathname] || pathname;
+  pathname = ECRAN.test(pathname) ? '/mur.html' : (ALIASES[pathname] || pathname);
   let file;
   try { file = path.join(PUBLIC, decodeURIComponent(pathname)); } catch { res.writeHead(400); return res.end(); }
   if (!file.startsWith(PUBLIC + path.sep)) { res.writeHead(403); return res.end(); }
@@ -397,7 +429,7 @@ async function route(req, res) {
       };
       clients.add(c);
       if (wantsStaff) {
-        send(res, 'hello', { leads: db.leads, deleted: Object.keys(db.deleted), words: db.words, wall: db.wall, settings: db.settings, tarifs: db.tarifs, presence: presence(), serverTime: Date.now() });
+        send(res, 'hello', { leads: db.leads, deleted: Object.keys(db.deleted), words: db.words, wall: db.wall, poll: pollPublic(), questions: db.questions, settings: db.settings, tarifs: db.tarifs, presence: presence(), serverTime: Date.now() });
         broadcast('presence', presence(), { staffOnly: true });
       } else {
         send(res, 'wall', publicWall());
@@ -410,9 +442,14 @@ async function route(req, res) {
     }
 
     if (p === '/api/words' && req.method === 'POST') {
-      if (!db.wall.accept) return json(res, 423, { error: 'Le mur est en pause, réessayez dans un instant' });
-      const { text, error } = cleanWord((await readBody(req, 4096)).text);
+      if (!db.wall.accept) return json(res, 423, { error: 'Les réponses sont closes pour le moment' });
+      const body = await readBody(req, 4096);
+      const pid = pidOf(body);
+      const max = Number(db.wall.maxPerPerson) || 0;
+      if (max && (db.wordsBy[pid] || 0) >= max) return json(res, 429, { error: max === 1 ? 'Un seul mot par personne pour cette question' : `${max} mots au maximum par personne` });
+      const { text, error } = cleanWord(body.text);
       if (error) return json(res, 422, { error });
+      db.wordsBy[pid] = (db.wordsBy[pid] || 0) + 1;
       const key = text.toLocaleLowerCase('fr').normalize('NFD').replace(/[̀-ͯ]/g, '');
       let w = db.words.find((x) => x.key === key);
       if (w) { w.count += 1; w.at = Date.now(); }
@@ -422,6 +459,55 @@ async function route(req, res) {
       broadcast('words:all', db.words, { staffOnly: true });
       if (!w.hidden) broadcast('word', w);
       return json(res, 200, { ok: true, word: w });
+    }
+
+    if (p === '/api/poll/vote' && req.method === 'POST') {
+      if (!db.poll) return json(res, 404, { error: 'Aucun sondage en cours' });
+      if (db.poll.open === false) return json(res, 423, { error: 'Le vote est clos' });
+      const b = await readBody(req, 4096);
+      const pid = pidOf(b);
+      const valid = new Set(db.poll.options.map((o) => o.id));
+      const picks = [...new Set([].concat(b.optionIds || b.optionId || []).map(String).filter((id) => valid.has(id)))];
+      if (!picks.length) return json(res, 422, { error: 'Choisissez une réponse' });
+      const votes = (db.pollVotes[db.poll.id] ||= {});
+      if (votes[pid]?.length && !b.change) return json(res, 409, { error: 'Vous avez déjà voté', poll: pollPublic(), mine: votes[pid] });
+      votes[pid] = db.poll.multiple ? picks : picks.slice(0, 1);
+      save();
+      broadcast('poll', pollPublic());
+      return json(res, 200, { ok: true, poll: pollPublic(), mine: votes[pid] });
+    }
+
+    if (p === '/api/questions' && req.method === 'POST') {
+      if (db.wall.qaOpen === false) return json(res, 423, { error: 'Les questions sont closes' });
+      const b = await readBody(req, 4096);
+      const text = cleanText(b.text, 180);
+      if (text.length < 4) return json(res, 422, { error: 'Question trop courte' });
+      if (/(https?:|www\.)/i.test(text)) return json(res, 422, { error: 'Les liens ne sont pas acceptés' });
+      if (BLOCKED.test(text.normalize('NFD').replace(/[̀-ͯ]/g, ''))) return json(res, 422, { error: 'Cette question ne peut pas être affichée' });
+      const pid = pidOf(b);
+      const mine = db.questions.filter((q) => q.by === pid && Date.now() - q.at < 120000);
+      if (mine.length >= 3) return json(res, 429, { error: 'Trois questions en deux minutes, c’est déjà bien : laissez les autres poser les leurs' });
+      const q = { id: crypto.randomUUID().slice(0, 8), text, by: pid, votes: 0, voters: [], hidden: false, answered: false, pinned: false, at: Date.now() };
+      db.questions.push(q);
+      save();
+      broadcast('questions', questionsPublic());
+      broadcast('questions:all', db.questions, { staffOnly: true });
+      broadcast('question', qPublic(q));
+      return json(res, 200, { ok: true, question: qPublic(q) });
+    }
+
+    if (p === '/api/questions/vote' && req.method === 'POST') {
+      const b = await readBody(req, 4096);
+      const q = db.questions.find((x) => x.id === String(b.id || ''));
+      if (!q || q.hidden) return json(res, 404, { error: 'Question introuvable' });
+      const pid = pidOf(b);
+      const i = q.voters.indexOf(pid);
+      if (i >= 0) q.voters.splice(i, 1); else q.voters.push(pid);
+      q.votes = q.voters.length;
+      save();
+      broadcast('questions', questionsPublic());
+      broadcast('questions:all', db.questions, { staffOnly: true });
+      return json(res, 200, { ok: true, voted: i < 0, question: qPublic(q) });
     }
 
     /* --- Équipe uniquement --- */
@@ -436,7 +522,7 @@ async function route(req, res) {
       return json(res, 200, { ok: true, token: config.token });
     }
 
-    if (p === '/api/state') return json(res, 200, { leads: db.leads, words: db.words, wall: db.wall, settings: db.settings, tarifs: db.tarifs, presence: presence() });
+    if (p === '/api/state') return json(res, 200, { leads: db.leads, words: db.words, wall: db.wall, poll: pollPublic(), questions: db.questions, settings: db.settings, tarifs: db.tarifs, presence: presence() });
 
     if (p.startsWith('/api/cards/')) {
       const id = path.basename(p);
@@ -497,6 +583,7 @@ async function route(req, res) {
 
     if (p === '/api/words/clear' && req.method === 'POST') {
       db.words = [];
+      db.wordsBy = {};
       save();
       broadcast('words', []);
       broadcast('words:all', [], { staffOnly: true });
@@ -504,12 +591,14 @@ async function route(req, res) {
     }
 
     if (p === '/api/wall' && req.method === 'PUT') {
-      const b = await readBody(req);
-      const allowed = ['scene', 'accept', 'message', 'question', 'photo', 'countdownTo', 'countdownFrom'];
+      const b = await readBody(req, 512 * 1024); // le logo client (image réduite) passe par ici
+      const allowed = ['scene', 'accept', 'message', 'question', 'photo', 'countdownTo', 'countdownFrom', 'maxPerPerson', 'reelSet', 'externalUrl', 'qaTitle', 'qaOpen', 'theme'];
       for (const k of allowed) {
         if (!(k in b)) continue;
-        if (k === 'accept') db.wall[k] = !!b[k];
-        else if (k === 'countdownTo' || k === 'countdownFrom') db.wall[k] = Math.max(0, Number(b[k]) || 0);
+        if (k === 'accept' || k === 'qaOpen') db.wall[k] = !!b[k];
+        else if (k === 'countdownTo' || k === 'countdownFrom' || k === 'maxPerPerson') db.wall[k] = Math.max(0, Number(b[k]) || 0);
+        else if (k === 'externalUrl') db.wall[k] = /^https?:\/\//i.test(String(b[k] || '')) ? String(b[k]).slice(0, 500) : '';
+        else if (k === 'theme') db.wall.theme = cleanTheme({ ...db.wall.theme, ...(b.theme || {}) });
         else db.wall[k] = String(b[k] ?? '').slice(0, 160);
       }
       db.wall.updatedAt = Date.now();
@@ -518,9 +607,50 @@ async function route(req, res) {
       return json(res, 200, { ok: true, wall: db.wall });
     }
 
+    // Sondage : chaque nouveau sondage repart de zéro ; ouvrir/clore et remettre à zéro gardent la question
+    if (p === '/api/poll' && req.method === 'PUT') {
+      const b = await readBody(req, 16 * 1024);
+      const options = [].concat(b.options || []).map((o) => cleanText(typeof o === 'string' ? o : o?.label, 60)).filter(Boolean).slice(0, 6);
+      if (options.length < 2) return json(res, 422, { error: 'Deux réponses au minimum' });
+      db.poll = { id: crypto.randomUUID().slice(0, 8), title: cleanText(b.title, 120) || 'Votre avis ?', options: options.map((label, i) => ({ id: 'o' + (i + 1), label })), open: b.open !== false, multiple: !!b.multiple, at: Date.now() };
+      db.pollVotes = { [db.poll.id]: {} };
+      save();
+      broadcast('poll', pollPublic());
+      return json(res, 200, { ok: true, poll: pollPublic() });
+    }
+    if (p === '/api/poll/open' && req.method === 'POST') {
+      if (db.poll) { db.poll.open = !!(await readBody(req, 4096)).open; save(); broadcast('poll', pollPublic()); }
+      return json(res, 200, { ok: true, poll: pollPublic() });
+    }
+    if (p === '/api/poll/reset' && req.method === 'POST') {
+      if (db.poll) { db.pollVotes[db.poll.id] = {}; save(); broadcast('poll', pollPublic()); }
+      return json(res, 200, { ok: true, poll: pollPublic() });
+    }
+
+    // Questions : masquer, marquer répondue, épingler, vider
+    if (p === '/api/questions/set' && req.method === 'POST') {
+      const b = await readBody(req, 4096);
+      const q = db.questions.find((x) => x.id === String(b.id || ''));
+      if (q) {
+        for (const k of ['hidden', 'answered', 'pinned']) if (k in b) q[k] = !!b[k];
+        save();
+        broadcast('questions', questionsPublic());
+        broadcast('questions:all', db.questions, { staffOnly: true });
+      }
+      return json(res, 200, { ok: true });
+    }
+    if (p === '/api/questions/clear' && req.method === 'POST') {
+      db.questions = [];
+      save();
+      broadcast('questions', []);
+      broadcast('questions:all', [], { staffOnly: true });
+      return json(res, 200, { ok: true });
+    }
+
     if (p === '/api/settings' && req.method === 'PUT') {
       const b = await readBody(req);
       for (const k of ['eventName', 'wifiSsid', 'wifiPass', 'publicUrl']) if (k in b) db.settings[k] = String(b[k]).slice(0, 120);
+      if ('bookAll' in b) db.settings.bookAll = !!b.bookAll;
       save();
       broadcast('settings', db.settings, { staffOnly: true });
       return json(res, 200, { ok: true, settings: db.settings });
@@ -570,6 +700,7 @@ server.listen(PORT, '0.0.0.0', () => {
   ┌─ MÉDIACOM EVENT OS · hub du stand ──────────────────────────
   │  Tablettes (équipe)  ${team}/?t=${config.token}
   │  Mur LED             ${base}/mur
+  │  Sortie écran (PC)   ${base}/ecran   (suit la tablette ; /ecran/nuage, /ecran/sondage, /ecran/noir… restent figés)
   │  Visiteurs           ${base}/nuage
   │  Console iPhone      ${team}/master?t=${config.token}
   │  Mise en service     http://localhost:${PORT}/setup

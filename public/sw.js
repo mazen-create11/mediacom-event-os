@@ -1,9 +1,9 @@
 // Service worker : l'application s'ouvre même si le hub redémarre ou si le Wi-Fi hoquette.
 // Pages, scripts et styles : réseau d'abord (un correctif est pris dès le lancement suivant),
 // cache en secours. Polices, photos, icônes et bibliothèques : cache d'abord. Jamais d'/api.
-const VERSION = 'mc-os-v3.5.1';
+const VERSION = 'mc-os-v4.0.0';
 const CORE = [
-  '/', '/nuage', '/contact', '/master', '/mur',
+  '/', '/nuage', '/contact', '/master', '/mur', '/ecran',
   '/css/os.css', '/css/mur.css',
   '/js/app.js', '/js/attract.js', '/js/hub.js', '/js/ui.js', '/js/data.js', '/js/mur.js',
   '/js/views/regie.js', '/js/views/contacts.js', '/js/views/capture.js', '/js/views/mur.js', '/js/views/book.js',
@@ -12,8 +12,12 @@ const CORE = [
   '/fonts/jost.woff2', '/fonts/jbmono-400.woff2', '/fonts/jbmono-500.woff2', '/fonts/jbmono-600.woff2', '/fonts/jbmono-700.woff2',
   '/assets/logo-m.svg', '/assets/logo-mediascene.png', '/mediacom.vcf', '/manifest.webmanifest',
 ];
-const ALIASES = { '/bilan': '/bilan', '/': '/index.html', '/mur': '/mur.html', '/nuage': '/nuage.html', '/master': '/master.html', '/contact': '/contact.html' };
+const ALIASES = { '/bilan': '/bilan', '/': '/index.html', '/mur': '/mur.html', '/ecran': '/mur.html', '/nuage': '/nuage.html', '/live': '/nuage.html', '/master': '/master.html', '/contact': '/contact.html' };
 const STATIC = /^\/(fonts|assets\/(?!videos)|icons|js\/vendor)/; // vidéos : servies par plages, hors cache
+// Clé de cache : une adresse courte (/mur) et son fichier (/mur.html) partagent la même entrée
+const keyOf = (p) => ALIASES[p] || p;
+// Une réponse partielle (206, vidéo) ou une redirection ne doit jamais être mise en cache telle quelle
+const clean = async (res) => (res.status === 206 || res.redirected ? new Response(res.body, { status: res.status === 206 ? 200 : res.status, headers: res.headers }) : res);
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => Promise.all(CORE.map(async (u) => {

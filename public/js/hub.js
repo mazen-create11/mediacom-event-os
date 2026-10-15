@@ -75,6 +75,8 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
     leads: cached.leads || [],
     words: cached.words || [],
     wall: cached.wall || { scene: 'cloud', accept: true, message: '', photo: 'scene-m-rouge' },
+    poll: cached.poll || null,
+    questions: cached.questions || [],
     settings: cached.settings || { eventName: 'Salon' },
     tarifs: cached.tarifs || null,
     presence: [],
@@ -95,7 +97,7 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
   // Le cache n'embarque pas les photos de cartes : elles vivent dans la file d'attente jusqu'à l'envoi
   const slim = (l) => (isDataURL(l.cardPhoto) ? { ...l, cardPhoto: null, cardPhotoPending: true } : l);
   const persistNow = () => {
-    if (!store(CACHE_KEY, { leads: state.leads.map(slim), words: state.words, wall: state.wall, settings: state.settings, tarifs: state.tarifs })) storageError();
+    if (!store(CACHE_KEY, { leads: state.leads.map(slim), words: state.words, wall: state.wall, poll: state.poll, questions: state.questions, settings: state.settings, tarifs: state.tarifs })) storageError();
   };
   let persistTimer = 0;
   const changed = (reason) => {
@@ -179,7 +181,7 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
   }
 
   // N'échoue jamais : un envoi impossible part en file d'attente, un refus est signalé
-  const CLOUD_API = /^\/api\/(words|wall)/;
+  const CLOUD_API = /^\/api\/(words|wall|poll|questions)/;
   async function send(method, url, body, key) {
     if (state.mode === 'local' || (state.mode === 'cloud' && !CLOUD_API.test(url))) return null;
     const job = { method, url, body, key, at: Date.now() };
@@ -260,7 +262,7 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
     handle('hello', async (d) => {
       await ready;
       state.leads = mergeLeads(d.leads, d.deleted);
-      state.words = d.words; state.wall = d.wall; state.settings = d.settings; state.tarifs = d.tarifs; state.presence = d.presence;
+      state.words = d.words; state.wall = d.wall; state.poll = d.poll || null; state.questions = d.questions || []; state.settings = d.settings; state.tarifs = d.tarifs; state.presence = d.presence;
       state.serverOffset = d.serverTime - Date.now();
       setStatus('online');
       changed('hello');
@@ -280,6 +282,9 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
     handle('words:all', (w) => { state.words = w; changed('words'); });
     handle('word', (w) => emit('word', w));
     handle('wall', (d) => { state.wall = d.wall; changed('wall'); });
+    handle('poll', (p) => { state.poll = p; changed('poll'); });
+    handle('questions:all', (q) => { state.questions = q; changed('questions'); });
+    handle('question', (q) => emit('question', q));
     handle('presence', (p) => { state.presence = p; emit('presence', p); });
     handle('settings', (s) => { state.settings = s; changed('settings'); });
     handle('tarifs', (t) => { state.tarifs = t; changed('tarifs'); });
@@ -314,6 +319,8 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
         if (JSON.stringify(d.words) !== JSON.stringify(state.words)) { state.words = d.words; changed('words'); }
         if (!first) fresh.forEach((w) => emit('word', w));
         if (Date.now() > wallPending && (d.wall.updatedAt || 0) !== (state.wall.updatedAt || 0)) { state.wall = d.wall; changed('wall'); }
+        if (JSON.stringify(d.poll || null) !== JSON.stringify(state.poll || null)) { state.poll = d.poll || null; changed('poll'); }
+        if (JSON.stringify(d.questions || []) !== JSON.stringify(state.questions || [])) { state.questions = d.questions || []; changed('questions'); }
         setStatus('online');
       } catch {
         setStatus('offline');
@@ -342,7 +349,7 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
   if (bc) bc.onmessage = ({ data: msg }) => {
     if (state.mode === 'hub' || msg.from === deviceId()) return;
     const c = load(CACHE_KEY, {});
-    Object.assign(state, { leads: c.leads || [], words: c.words || [], wall: c.wall || state.wall, settings: c.settings || state.settings, tarifs: c.tarifs ?? state.tarifs });
+    Object.assign(state, { leads: c.leads || [], words: c.words || [], wall: c.wall || state.wall, poll: c.poll ?? state.poll, questions: c.questions || state.questions, settings: c.settings || state.settings, tarifs: c.tarifs ?? state.tarifs });
     emit('change', msg.type);
     if (msg.type === 'transfer') emit('transfer', msg.data);
     if (msg.type === 'alert') emit('alert', msg.data);
@@ -436,6 +443,64 @@ export function createHub({ kind = 'tablet', operator = () => '' } = {}) {
       return send('PUT', '/api/wall', patch);
     },
 
+    // Sondage : la tablette garde une version calculée localement (mode local) ou relit le hub
+    async setPoll({ title, options, multiple = false, open = true }) {
+      const opts = options.map((label, i) => ({ id: 'o' + (i + 1), label, count: 0 }));
+      state.poll = { id: 'local-' + uid().slice(0, 6), title, options: opts, open, multiple, total: 0, voters: 0, at: now() };
+      changed('poll'); localBroadcast('poll');
+      const d = await send('PUT', '/api/poll', { title, options, multiple, open });
+      if (d?.poll) { state.poll = d.poll; changed('poll'); }
+      return state.poll;
+    },
+    pollOpen(open) {
+      if (state.poll) { state.poll.open = open; changed('poll'); localBroadcast('poll'); }
+      return send('POST', '/api/poll/open', { open });
+    },
+    pollReset() {
+      if (state.poll) { state.poll.options.forEach((o) => { o.count = 0; }); state.poll.total = 0; state.poll.voters = 0; changed('poll'); localBroadcast('poll'); }
+      return send('POST', '/api/poll/reset', {});
+    },
+    // Vote local (démo sans hub) : sert aussi à la tablette pour montrer le résultat à un client
+    async vote(optionIds, pid = deviceId()) {
+      if (state.mode === 'local') {
+        const p = state.poll;
+        if (!p || p.open === false) throw new Error('Le vote est clos');
+        p.mine = p.mine || {};
+        const prev = p.mine[pid] || [];
+        prev.forEach((id) => { const o = p.options.find((x) => x.id === id); if (o) o.count -= 1; });
+        const picks = p.multiple ? optionIds : optionIds.slice(0, 1);
+        picks.forEach((id) => { const o = p.options.find((x) => x.id === id); if (o) o.count += 1; });
+        p.mine[pid] = picks;
+        p.total = p.options.reduce((s, o) => s + o.count, 0);
+        p.voters = Object.keys(p.mine).length;
+        changed('poll'); localBroadcast('poll');
+        return { ok: true, poll: p, mine: picks };
+      }
+      const d = await api('POST', '/api/poll/vote', { optionIds, pid, change: true });
+      if (d?.poll) { state.poll = d.poll; changed('poll'); }
+      return d;
+    },
+    setQuestion(id, patch) {
+      const q = state.questions.find((x) => x.id === id);
+      if (q) { Object.assign(q, patch); changed('questions'); localBroadcast('questions'); }
+      return send('POST', '/api/questions/set', { id, ...patch });
+    },
+    clearQuestions() {
+      state.questions = [];
+      changed('questions'); localBroadcast('questions');
+      return send('POST', '/api/questions/clear', {});
+    },
+    async askQuestion(text, pid = deviceId()) {
+      if (state.mode === 'local') {
+        const q = { id: uid().slice(0, 8), text, votes: 0, voters: [], hidden: false, answered: false, pinned: false, at: now() };
+        state.questions.push(q); changed('questions'); localBroadcast('questions');
+        return { ok: true, question: q };
+      }
+      const d = await api('POST', '/api/questions', { text, pid });
+      if (state.mode === 'cloud') pollCloud();
+      return d;
+    },
+
     setTarifs(t) {
       state.tarifs = t;
       changed('tarifs'); localBroadcast('tarifs');
@@ -474,7 +539,7 @@ export function wallFeed(onData) {
 
 function localWall(onData) {
   {
-    const read = () => { const c = load(CACHE_KEY, {}); onData({ wall: c.wall || { scene: 'cloud', accept: true }, words: (c.words || []).filter((w) => !w.hidden), eventName: c.settings?.eventName }); };
+    const read = () => { const c = load(CACHE_KEY, {}); onData({ wall: c.wall || { scene: 'cloud', accept: true }, words: (c.words || []).filter((w) => !w.hidden), poll: c.poll || null, questions: (c.questions || []).filter((q) => !q.hidden), eventName: c.settings?.eventName }); };
     read();
     if ('BroadcastChannel' in window) new BroadcastChannel(BC_NAME).onmessage = ({ data }) => { read(); if (data.type === 'word' && !data.data?.hidden) onData({ word: data.data }); };
     return { mode: 'local' };
@@ -489,7 +554,7 @@ function cloudWall(onData) {
       const fresh = d.words.filter((w) => w.at > last);
       const first = !last;
       last = Math.max(last, ...d.words.map((w) => w.at), 1);
-      onData({ wall: d.wall, words: d.words });
+      onData({ wall: d.wall, words: d.words, poll: d.poll || null, questions: d.questions || [] });
       if (!first) fresh.sort((a, b) => a.at - b.at).forEach((w) => onData({ word: w }));
     } catch { /* réseau : on réessaie */ }
     setTimeout(tick, document.hidden ? 10000 : 2000);
@@ -505,6 +570,9 @@ function hubWall(onData) {
     es.addEventListener('wall', (e) => onData(JSON.parse(e.data)));
     es.addEventListener('words', (e) => onData({ words: JSON.parse(e.data) }));
     es.addEventListener('word', (e) => onData({ word: JSON.parse(e.data) }));
+    es.addEventListener('poll', (e) => onData({ poll: JSON.parse(e.data) }));
+    es.addEventListener('questions', (e) => onData({ questions: JSON.parse(e.data) }));
+    es.addEventListener('question', (e) => onData({ question: JSON.parse(e.data) }));
     es.onerror = () => { if (es.readyState === EventSource.CLOSED) setTimeout(open, 3000); };
   };
   open();

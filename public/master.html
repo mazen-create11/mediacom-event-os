@@ -36,7 +36,7 @@
   <main class="m">
     <header class="m-top"><span id="logo"></span><b>CONSOLE</b><span class="spacer"></span><span class="tc" style="height:32px"><span class="led" id="st-led"></span><span class="clock" id="clock">--:--:--</span></span><button class="op-btn" id="op" style="padding:3px"></button></header>
 
-    <div class="m-kpis"><div><b id="k-total">0</b><span>Contacts</span></div><div><b id="k-hot" style="color:#ff6b6b">0</b><span>Chauds</span></div><div><b id="k-words">0</b><span>Mots</span></div></div>
+    <div class="m-kpis"><div><b id="k-total">0</b><span>Contacts</span></div><div><b id="k-hot" style="color:#ff6b6b">0</b><span>Chauds</span></div><div><b id="k-words">0</b><span>Participations</span></div></div>
 
     <article class="module"><header class="mod-head"><span class="n">01</span><span class="t">Équipe</span></header><div class="mod-body" style="padding:12px"><div class="strips" id="strips"></div></div></article>
 
@@ -48,7 +48,7 @@
 
     <article class="module"><header class="mod-head"><span class="n">03</span><span class="t">Mur LED</span><span class="r" id="wall-st"></span></header>
       <div class="mod-body">
-        <div class="scene-keys" id="scenes" style="grid-template-columns:repeat(5,minmax(0,1fr));gap:6px"></div>
+        <div class="scene-keys" id="scenes" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:6px"></div>
         <div class="toggle-row mt-2"><div class="l"><b>Accepter les mots</b></div><button class="switch" role="switch" id="accept" aria-label="Accepter les mots"></button></div>
       </div></article>
 
@@ -65,7 +65,7 @@
     $('#csv').href = withToken('/api/export.csv');
     const QUICK = ['Renfort au stand', 'Visiteur important au stand', 'Démo lumière dans 5 min', 'Pause 15 min'];
     $('#quick').innerHTML = QUICK.map((q) => `<button class="chip" aria-pressed="false" data-q="${q}">${q}</button>`).join('');
-    const SC = [['cloud', 'Nuage', 'cloud'], ['reel', 'Reel', 'image'], ['mediascene', 'Scène', 'scene'], ['message', 'Msg', 'message'], ['black', 'Noir', 'blackout']];
+    const SC = [['cloud', 'Nuage', 'cloud'], ['poll', 'Sondage', 'poll'], ['questions', 'Questions', 'question'], ['reel', 'Reel', 'image'], ['mediascene', 'Scène', 'scene'], ['message', 'Msg', 'message'], ['black', 'Noir', 'blackout']];
     $('#scenes').innerHTML = SC.map(([id, l, i]) => `<button class="key" data-scene="${id}" style="width:auto;min-height:62px">${icon(i)}<span>${l}</span></button>`).join('');
 
     const me = () => opById(localStorage.getItem('mc_op') || 'mazen');
@@ -81,7 +81,7 @@
       const s = hub.state;
       $('#k-total').textContent = s.leads.length;
       $('#k-hot').textContent = s.leads.filter((l) => l.temperature === 'hot').length;
-      $('#k-words').textContent = s.words.filter((w) => !w.hidden).length;
+      $('#k-words').textContent = s.words.filter((w) => !w.hidden).length + (s.poll?.total || 0) + (s.questions || []).filter((q) => !q.hidden).length;
       const online = new Set(s.presence.map((p) => p.op));
       const max = Math.max(4, ...OPERATORS.map((o) => s.leads.filter((l) => l.operator === o.id).length));
       $('#strips').innerHTML = OPERATORS.map((o) => { const n = s.leads.filter((l) => l.operator === o.id).length; return `<div class="strip ${o.id === me().id ? 'me' : ''}"><span class="scribble">${esc(o.name)}</span><span class="meter" style="--level:${(n / max).toFixed(3)}"></span><span class="count mono">${n}</span><span class="state"><span class="led ${online.has(o.id) ? 'on' : ''}"></span></span></div>`; }).join('');

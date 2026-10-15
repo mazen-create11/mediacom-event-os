@@ -69,7 +69,7 @@ function mount(root, c) {
     </article>
 
     <article class="module span-4 md-full" style="--i:2">
-      <header class="mod-head"><span class="n">03</span><span class="t">Mur LED</span><span class="r" id="rg-wall-state"></span></header>
+      <header class="mod-head"><span class="n">03</span><span class="t">Écran LED</span><span class="r" id="rg-wall-state"></span></header>
       <div class="mod-body">
         <a class="wall-preview" href="#mur" aria-label="Piloter le mur LED" id="rg-wall"></a>
         <div class="row mt-2"><div class="kv"><span class="eyebrow">Mots reçus</span><b id="rg-words">0</b></div>

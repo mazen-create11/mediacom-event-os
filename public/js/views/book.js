@@ -1,4 +1,4 @@
-import { PHOTOS, VIDEOS, UNIVERS, MEDIASCENE, PROOFS, GEAR, photo, video, poster } from '../data.js';
+import { PHOTOS, VIDEOS, UNIVERS, MEDIASCENE, PROOFS, GEAR, isSem, photo, video, poster } from '../data.js';
 import { icon, esc, $, $$, LOGO_M, reduced } from '../ui.js';
 
 let el, ctx;
@@ -18,8 +18,8 @@ const HEROES = {
   mediascene: {
     photos: MEDIASCENE.photos,
     eyebrow: 'Scène mobile · MediaScène',
-    title: 'La scène mobile, de 60&nbsp;à&nbsp;120&nbsp;m².',
-    text: 'Deux formats déployés par vérins hydrauliques : la MediaScène 60&nbsp;m² sur remorque de 3,5&nbsp;t, et la scène 3-en-1 de 80, 100 ou 120&nbsp;m² sur semi-remorque.',
+    title: 'La scène mobile, de 60&nbsp;à&nbsp;160&nbsp;m².',
+    text: 'Trois formats déployés par vérins hydrauliques : la MediaScène 60&nbsp;m² sur remorque de 3,5&nbsp;t, la scène 3-en-1 de 80, 100 ou 120&nbsp;m² sur semi-remorque, et la 160&nbsp;m² avec régie intégrée.',
     needs: ['Scène mobile MediaScène'],
   },
 };
@@ -46,7 +46,7 @@ function mount(root, c) {
       <button class="btn btn-quiet" data-present="gallery">${icon('expand')}Présenter la sélection</button>
     </div>
     <div class="chips sm mt-2" id="bk-filters" role="group" aria-label="Univers" style="--i:4">
-      ${UNIVERS.map((u) => `<button class="chip" data-u="${u.id}" aria-pressed="${u.id === univers}">${esc(u.label)}</button>`).join('')}
+      ${UNIVERS.filter((u) => !u.reserve || showAll()).map((u) => `<button class="chip" data-u="${u.id}" aria-pressed="${u.id === univers}">${esc(u.label)}</button>`).join('')}
     </div>
     <div class="gallery mt-3" id="bk-gallery" style="--i:5"></div>
 
@@ -136,9 +136,11 @@ function renderBand(animate) {
   if (animate && !reduced()) $$('.spec', band).forEach((n, i) => n.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 380, delay: i * 35, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' }));
 }
 
+// Salon du séminaire : concerts, festivals et gala sportif restent en réserve (réglage « Tout le book » dans Pass)
+const showAll = () => ctx?.hub?.state?.settings?.bookAll === true;
 const current = () => [
-  ...(univers === 'all' || univers === 'video' ? VIDEOS.map((v) => ({ ...v, type: 'video' })) : []),
-  ...PHOTOS.filter((p) => univers === 'all' || p.u === univers),
+  ...(univers === 'all' || univers === 'video' ? VIDEOS.filter((v) => showAll() || isSem(v)).map((v) => ({ ...v, type: 'video' })) : []),
+  ...PHOTOS.filter((p) => (univers === 'all' || p.u === univers) && (showAll() || isSem(p))),
 ];
 
 function renderGallery() {
@@ -236,7 +238,13 @@ export function present(list, start = 0, title = '', { attract = false } = {}) {
   show(idx);
 }
 
+function update(reason) {
+  if (!el || reason !== 'settings') return;
+  if (!showAll() && univers === 'scene') univers = 'all';
+  renderGallery();
+}
+
 export default {
   id: 'book', title: 'Book', short: 'Book', sub: 'Réalisations et MediaScène', icon: 'book',
-  mount,
+  mount, update,
 };

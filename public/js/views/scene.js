@@ -13,12 +13,12 @@ const THEMES = {
 const FORMATS = { pleniere: 'Plénière', gala: 'Gala', concert: 'Concert', mediascene: 'MediaScène' };
 const fmt = (n) => String(n).replace('.', ',');
 
-// Dimensions des fiches techniques : 60 m² (remorque 3,5 t) et 3-en-1 80/100/120 m² (semi-remorque)
+// Dimensions des fiches techniques : 60 m² (remorque 3,5 t), 3-en-1 80/100/120 m² (semi-remorque) et 160 m² avec régie
 function msModel() {
   const size = conf.msSize;
   const m = MEDIASCENE.models.find((x) => x.sizes.includes(size));
   const [W, D] = m.deck[size];
-  return { size, W, D, clear: m.clearance, deckH: m.deckH, trailer: m.trailer, name: m.name, load: m.id === 'ms60' ? '1,6 t' : '10,1 t' };
+  return { size, W, D, clear: m.clearance, deckH: m.deckH, trailer: m.trailer, name: m.name, load: m.id === 'ms60' ? '1,6 t' : m.id === 'ms160' ? '6 t' : '10,1 t' };
 }
 const LOGO_PATH = 'M0 0L128.6 134L256 0V110.4L130.6 241L0 110.1Z M0 152.4V242H80.3Z M256 152.5V242H175.9Z';
 
@@ -55,7 +55,7 @@ function mount(root, c) {
           <div class="field"><span class="lbl">Pas de pixel</span><div class="chips sm" id="s3-pitch">${[2.6, 3.9].map((p) => `<button class="chip" data-pitch="${p}" aria-pressed="${p === conf.pitch}">P${String(p).replace('.', ',')}</button>`).join('')}</div></div>
         </div>
         <div class="stack" id="s3-ms-ctrl" style="gap:14px" hidden>
-          <div class="field"><span class="lbl">Taille du plateau</span><div class="chips sm" id="s3-ms-size">${[60, 80, 100, 120].map((v) => `<button class="chip" data-size="${v}" aria-pressed="${v === conf.msSize}">${v} m²</button>`).join('')}</div></div>
+          <div class="field"><span class="lbl">Taille du plateau</span><div class="chips sm" id="s3-ms-size">${MEDIASCENE.sizes.map((v) => `<button class="chip" data-size="${v}" aria-pressed="${v === conf.msSize}">${v} m²</button>`).join('')}</div></div>
           <div class="deploy"><button class="btn btn-primary" id="s3-deploy">${icon('play')}Rejouer le déploiement</button>
             <div class="deploy-track"><i id="s3-deploy-bar"></i></div><span class="deploy-step" id="s3-deploy-step"></span></div>
         </div>
