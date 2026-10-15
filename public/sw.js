@@ -1,13 +1,13 @@
 // Service worker : l'application s'ouvre même si le hub redémarre ou si le Wi-Fi hoquette.
 // Pages, scripts et styles : réseau d'abord (un correctif est pris dès le lancement suivant),
 // cache en secours. Polices, photos, icônes et bibliothèques : cache d'abord. Jamais d'/api.
-const VERSION = 'mc-os-v4.0.0';
+const VERSION = 'mc-os-v4.0.1';
 const CORE = [
   '/', '/nuage', '/contact', '/master', '/mur', '/ecran',
   '/css/os.css', '/css/mur.css',
   '/js/app.js', '/js/attract.js', '/js/hub.js', '/js/ui.js', '/js/data.js', '/js/mur.js',
   '/js/views/regie.js', '/js/views/contacts.js', '/js/views/capture.js', '/js/views/mur.js', '/js/views/book.js',
-  '/js/views/devis.js', '/js/views/scene.js', '/js/views/elec.js', '/js/views/pass.js',
+  '/js/views/scene.js', '/js/views/pass.js',
   '/bilan', '/js/vendor/qrcode.js', '/js/vendor/jsqr.js', '/js/vendor/three.js',
   '/fonts/jost.woff2', '/fonts/jbmono-400.woff2', '/fonts/jbmono-500.woff2', '/fonts/jbmono-600.woff2', '/fonts/jbmono-700.woff2',
   '/assets/logo-m.svg', '/assets/logo-mediascene.png', '/mediacom.vcf', '/manifest.webmanifest',

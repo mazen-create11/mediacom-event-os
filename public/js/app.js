@@ -5,15 +5,14 @@ import regie from './views/regie.js';
 import contacts from './views/contacts.js';
 import mur from './views/mur.js';
 import book from './views/book.js';
-import devis from './views/devis.js';
 import scene from './views/scene.js';
-import elec from './views/elec.js';
 import pass from './views/pass.js';
 import { openCapture } from './views/capture.js';
 import { present } from './views/book.js';
 import { initAttract } from './attract.js';
 
-const VIEWS = [regie, contacts, mur, book, devis, scene, elec, pass];
+// Devis et Élec retirés le 15/10/2026 (Mazen) : leurs modules sont gardés dans _legacy/views/
+const VIEWS = [regie, contacts, mur, book, scene, pass];
 
 const ctx = {
   me: () => opById(localStorage.getItem('mc_op') || ''),

@@ -26,9 +26,7 @@ La page `http://localhost:3000/setup` s'ouvre avec les QR codes de mise en servi
 - **Contacts** : saisie en 20 s (Express, lecture du QR d'un badge, photo de carte) pensée pour les agences (profil, nombre d'événements par an), indicateur de complétude de la fiche, détection des doublons, fiche, transfert à un collègue (sa tablette sonne), QR vCard sans réseau, export CSV (contacts « démo » exclus).
 - **Écran** : 8 scènes pilotées depuis la tablette ou l'iPhone : **nuage de mots**, **sondage** (2 à 6 réponses, choix multiple, vote ouvert ou clos, barres et pourcentages en direct), **questions du public** (envoi, vote des participants, épingler, répondu, masquer), showreel, MediaScène 60 à 160 m², message mot à mot avec compte à rebours, page externe (l'outil d'un tiers plein écran), noir. Modération, limite de réponses par personne, clôture. **Habillage** en quelques secondes : sobre (défaut, rien ne bouge), lumière, couleur unie, dégradé, photo ; nom et logo du client ; signature Médiacom. Le concept vendu aux agences : une session interactive administrée par Médiacom, aux couleurs du client.
 - **Book** : deux ouvertures (séminaires et conventions ; MediaScène 60 m², 3-en-1 80 à 120 m², 160 m² avec régie, chiffres des fiches techniques), photos réelles de mediacom.org agrandies à 2 880 px, mode présentation plein écran. Sélection séminaire par défaut (concerts, festivals et gala sportif en réserve, réglage « Tout le book » dans Pass).
-- **Devis express** : fourchette indicative, barème éditable et validable par Éric (bandeau « à valider » tant qu'il ne l'a pas fait), impression.
 - **Scène 3D** : plateau, mur LED incurvé animé, truss, lyres et faisceaux, salle en plénière, gala ou concert ; résolution et cabinets calculés. Format **MediaScène** à l'échelle des fiches (60, 80, 100, 120 m²) avec déploiement hydraulique animé.
-- **Électricité** : charge des deux lignes 16 A, alerte à 80 % et en surcharge.
 - **Bilan du stand** (`/bilan`) : document imprimable en PDF pour Éric (contacts chauds à rappeler, profils, équipe, besoins, affluence, mots du mur), résumé envoyé par e-mail.
 - **Pass & réglages** : QR visiteurs (fiche contact, site, MediaScène, avis Google), appairage, Wi-Fi du stand, nom de l'événement.
 
@@ -58,5 +56,4 @@ La page `http://localhost:3000/setup` s'ouvre avec les QR codes de mise en servi
 
 ## À valider par l'équipe
 
-- Éric : barème du devis, droits d'usage des photos créditées, compte Instagram (non affiché tant qu'il n'est pas confirmé).
-- Nolan : consommations réelles du mur LED et des lyres (onglet Électricité, valeurs indicatives).
+- Éric : droits d'usage des photos créditées, compte Instagram (non affiché tant qu'il n'est pas confirmé), sélection séminaire du Book.
