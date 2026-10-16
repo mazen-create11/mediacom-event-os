@@ -35,6 +35,7 @@ let current = null;
 // Retour arrière : chaque changement de page entre dans l'historique du navigateur (flèche de l'en-tête,
 // geste « retour » de l'iPad, touche Échap). Les pages déjà visitées se remontent dans l'ordre.
 const trail = [];
+const scrollPos = new Map(); // défilement de chaque page quittée, restitué au retour
 const backBtn = $('#back');
 backBtn.innerHTML = icon('left');
 function renderBack() { backBtn.hidden = !trail.length; }
@@ -60,6 +61,7 @@ function go(id, { instant = false, fromHistory = false } = {}) {
   }
   renderBack();
   if (current === view) return;
+  if (current) scrollPos.set(current.id, $('#stage').scrollTop); // on reviendra au même endroit
   current?.leave?.();
   $$('.view').forEach((s) => s.classList.remove('is-active'));
   const el = $(`#v-${view.id}`);
@@ -77,7 +79,7 @@ function go(id, { instant = false, fromHistory = false } = {}) {
   $('#view-title').textContent = view.title;
   $('#view-sub').textContent = view.sub || '';
   document.title = `${view.title} · Médiacom`;
-  $('#stage').scrollTop = 0;
+  $('#stage').scrollTop = fromHistory ? scrollPos.get(view.id) || 0 : 0;
   $('#go').classList.toggle('is-away', !!view.hideGo);
   // Le bouton se fait discret là où l'on travaille autre chose que la saisie
   $('#go').classList.toggle('is-compact', !['regie', 'contacts'].includes(view.id));
