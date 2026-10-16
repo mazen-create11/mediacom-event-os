@@ -32,9 +32,33 @@ $('#rail-keys').innerHTML = VIEWS.map((v, i) => `<a class="key" href="#${v.id}" 
 const mounted = new Set();
 let current = null;
 
-function go(id, { instant = false } = {}) {
+// Retour arrière : chaque changement de page entre dans l'historique du navigateur (flèche de l'en-tête,
+// geste « retour » de l'iPad, touche Échap). Les pages déjà visitées se remontent dans l'ordre.
+const trail = [];
+const backBtn = $('#back');
+backBtn.innerHTML = icon('left');
+function renderBack() { backBtn.hidden = !trail.length; }
+function goBack() {
+  if (drawerOpen()) { closeDrawer(); return; }
+  if ($('#sheet')?.open) { closeSheet(); return; }
+  if (!trail.length) return;
+  history.back();
+}
+backBtn.addEventListener('click', goBack);
+addEventListener('popstate', () => {
+  const id = location.hash.slice(1) || 'regie';
+  const i = trail.lastIndexOf(id);
+  if (i >= 0) trail.splice(i); else if (current) trail.push(current.id); // avance (bouton « suivant »)
+  go(id, { fromHistory: true });
+});
+
+function go(id, { instant = false, fromHistory = false } = {}) {
   const view = VIEWS.find((v) => v.id === id) || VIEWS[0];
-  if (location.hash.slice(1) !== view.id) history.replaceState(null, '', '#' + view.id);
+  if (location.hash.slice(1) !== view.id) {
+    if (current && !fromHistory) { trail.push(current.id); if (trail.length > 30) trail.shift(); history.pushState({ v: view.id }, '', '#' + view.id); }
+    else history.replaceState({ v: view.id }, '', '#' + view.id);
+  }
+  renderBack();
   if (current === view) return;
   current?.leave?.();
   $$('.view').forEach((s) => s.classList.remove('is-active'));
@@ -59,7 +83,8 @@ function go(id, { instant = false } = {}) {
   $('#go').classList.toggle('is-compact', !['regie', 'contacts'].includes(view.id));
 }
 
-window.addEventListener('hashchange', () => go(location.hash.slice(1)));
+// Les touches du rail passent par go() (une entrée d'historique propre) plutôt que par le saut d'ancre du navigateur
+$('#rail-keys').addEventListener('click', (e) => { const a = e.target.closest('a[data-view]'); if (!a) return; e.preventDefault(); go(a.dataset.view); });
 
 /* ---------- Opérateur de la tablette ---------- */
 function renderOperator() {
@@ -189,7 +214,7 @@ tick();
 /* ---------- Clavier (clavier Bluetooth ou Mac) ---------- */
 document.addEventListener('keydown', (e) => {
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
-  if (e.key === 'Escape') { if (drawerOpen()) closeDrawer(); return; }
+  if (e.key === 'Escape') { if (drawerOpen()) closeDrawer(); else if (!$('#sheet')?.open && !typing) goBack(); return; }
   if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'n' || e.key === 'N') { e.preventDefault(); ctx.newLead(); }
   const n = Number(e.key);

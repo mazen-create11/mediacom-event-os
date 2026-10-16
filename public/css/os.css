@@ -863,3 +863,9 @@ textarea.input { height: auto; min-height: 92px; padding: 12px 14px; resize: ver
 .bv-card.off .bv-state { background: rgba(255, 255, 255, 0.85); color: #0a1222; }
 .bv-t b { display: block; font-weight: 500; font-size: 13px; line-height: 1.25; }
 .bv-t small { display: block; margin-top: 2px; font-size: 11px; color: var(--text-3); line-height: 1.3; }
+
+/* Retour arrière (en-tête) : visible dès qu'une page précédente existe */
+.back-btn { display: grid; place-items: center; width: 34px; height: 34px; flex: none; align-self: center; border-radius: 50%; border: 1px solid var(--line-2); background: rgba(255, 255, 255, 0.03); color: var(--text-2); cursor: pointer; transition: border-color 160ms, color 160ms, background 160ms; }
+.back-btn svg { width: 18px; height: 18px; }
+.back-btn:hover, .back-btn:focus-visible { border-color: var(--blue); color: #fff; background: rgba(49, 146, 255, 0.12); outline: none; }
+.back-btn[hidden] { display: none; }
