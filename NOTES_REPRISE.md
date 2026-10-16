@@ -8,6 +8,8 @@
 - **Book** : `settings.bookHide / bookShow`, `setBookOverrides()` dans `data.js`, `publicWall().book` pour l'écran, module 03 du Pass.
 - Piège : `networkidle` de Playwright ne se déclenche jamais sur `/ecran` (SSE + pings), attendre `load`.
 - Session en ligne renommée « Démo SBE Marseille », jeu de démo rechargé (10 mots, sondage, 2 questions).
+- **Navigation** (`fc47d95`, `0f98688`) : flèche « page précédente » dans l'en-tête, historique `pushState`, Échap = retour, défilement restitué au retour.
+- **MediaScène 3D refaite** (`335d622`, agent Opus 5.5, `public/js/views/scene.js` seul) : géométrie par taille d'après les fiches 07-docs, la note de calcul et mediascene.eu (60 : 9,08 × 6,58, plancher 1,05, toit 4,87 ; 3-en-1 : 12,30 × 6,86/8,11/9,36, plancher 1,45, toit 7,97 compté depuis le sol ; 160 : 13,50 × 10,50, plancher 1,20, toit 8 m). Remorque fermée blanche (60) ou semi noire, déploiement 12 s en 6 phases (calage, ailes de toit, planchers, colonnes, poteaux/garde-corps/escalier, bâches/son/lumière). À valider par Nolan : 7,97 m depuis le sol ou le plancher ; cinématique de la 160 (interprétée) ; poteaux de la 60 (tubes alu ou treillis noir). Étiquette `v2026-10-16b`.
 
 ## Passe du 15/10/2026 (retour de Nolan, 3 vocaux du 13/10 ; rapport `docs/rapports/2026-10-15/RAPPORT.md`)
 - Sorties d'écran dédiées : `/ecran` (suit la tablette), `/ecran/<scène>` figées, sortie pure sans bandeau. Nolan alimente le mur par un boîtier de commutation : une adresse par entrée.
