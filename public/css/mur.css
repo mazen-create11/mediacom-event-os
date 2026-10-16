@@ -48,6 +48,7 @@
 .w-word { font-weight: 600; font-size: 2.05cqw; letter-spacing: 0.22em; }
 .w-base { font: 500 0.82cqw/1 var(--f-mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--accent); padding-left: 1.1cqw; border-left: 1px solid var(--card-line); }
 .w-client { height: 4.2cqw; width: auto; max-width: 22cqw; object-fit: contain; }
+.w-client-name { max-width: 30cqw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: 0.14em; text-transform: uppercase; }
 .w-by { display: flex; align-items: center; gap: 0.5cqw; margin-left: 1.2cqw; padding-left: 1.2cqw; border-left: 1px solid var(--card-line); font: 500 0.8cqw/1 var(--f-mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3); }
 .w-by .w-m svg { width: 1.6cqw; filter: none; }
 .no-brand .w-brand:has(.w-word) { opacity: 0; }
@@ -78,10 +79,16 @@
 .wall[data-scene='reel'] .w-title, .wall[data-scene='mediascene'] .w-title, .wall[data-scene='message'] .w-title { opacity: 0; }
 .w-head, .w-ticker, .w-bg { transition: opacity 900ms var(--ease-io); }
 
-/* Nuage : toute la largeur, la question au-dessus */
-/* Le nuage s'arrête au-dessus de la bande basse (dernier mot à gauche, QR à droite) */
+/* Nuage : toute la largeur. Deux dispositions : la question au centre, les mots autour (défaut, relecture
+   Nolan : « les questions au milieu, le nuage s'organise tout seul ») ou la question au-dessus.
+   Le nuage s'arrête au-dessus de la bande basse (dernier mot à gauche, QR à droite). */
+.wall { --cloud-top: 8cqw; --cloud-h: 26cqw; }
+.pure { --cloud-top: 6cqw; --cloud-h: 31cqw; }
 .w-cloud { position: absolute; left: 3cqw; right: 3cqw; top: 13.2cqw; height: 21cqw; }
 .pure .w-cloud { top: 11cqw; height: 25cqw; }
+.wall[data-layout='centre'] .w-cloud, .pure.wall[data-layout='centre'] .w-cloud { top: var(--cloud-top); height: var(--cloud-h); }
+.wall[data-layout='centre'][data-scene='cloud'] .w-title { top: calc(var(--cloud-top) + var(--cloud-h) / 2); transform: translateY(-50%); left: 19cqw; right: 19cqw; }
+.wall[data-layout='centre'][data-scene='cloud'] .w-title h2 { font-weight: 600; }
 .w-word-i {
   position: absolute; left: 0; top: 0; white-space: nowrap; line-height: 1; font-weight: 500;
   transform: translate(var(--x), var(--y));

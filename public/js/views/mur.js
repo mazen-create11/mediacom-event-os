@@ -3,9 +3,10 @@
 // et les liens dédiés pour l'ordinateur du mur (Nolan commute ses sources depuis un boîtier :
 // l'écran ne reçoit rien à distance, il affiche une adresse).
 import { PHOTOS, photo } from '../data.js';
-import { icon, esc, $, $$, toast, confirmSheet, sheet, closeSheet, qrSVG, ago } from '../ui.js';
+import { icon, esc, $, $$, toast, confirmSheet, sheet, closeSheet, qrSVG, ago, download } from '../ui.js';
+import { withToken } from '../hub.js';
 
-let el, ctx;
+let el, ctx, sessions = [], screenTimer = 0;
 const SCENES = [
   { id: 'cloud', label: 'Nuage', icon: 'cloud', hint: 'Nuage de mots' },
   { id: 'poll', label: 'Sondage', icon: 'poll', hint: 'Sondage à choix' },
@@ -49,7 +50,7 @@ function mount(root, c) {
   el.innerHTML = `<div class="rack">
     <article class="module span-12" style="--i:0">
       <header class="mod-head"><span class="n">01</span><span class="t">Sortie écran · suit la tablette</span>
-        <span class="r"><span id="mw-state"></span><button class="btn btn-quiet btn-sm" id="mw-links">${icon('link')}Liens de l’écran</button></span></header>
+        <span class="r"><span class="screen-state" id="mw-screen"></span><span id="mw-state"></span><button class="btn btn-quiet btn-sm" id="mw-links">${icon('link')}Liens de l’écran</button></span></header>
       <div class="mod-body">
         <div class="wall-wrap wall-big"><div class="wall-preview" id="mw-preview"><iframe src="/ecran?preview=1" title="Aperçu de l’écran" tabindex="-1"></iframe></div>
           <button class="btn btn-quiet btn-sm wall-full-btn" id="mw-full">${icon('expand')}Plein écran</button></div>
@@ -67,6 +68,11 @@ function mount(root, c) {
     <article class="module span-5 md-5" style="--i:2">
       <header class="mod-head"><span class="n">03</span><span class="t">Habillage de l’écran</span><span class="r" id="mw-theme-r"></span></header>
       <div class="mod-body" id="mw-theme"></div>
+    </article>
+
+    <article class="module span-12" style="--i:3">
+      <header class="mod-head"><span class="n">04</span><span class="t">Session interactive</span><span class="r" id="mw-ses-r"></span></header>
+      <div class="mod-body" id="mw-session"></div>
     </article>
   </div>`;
 
@@ -89,8 +95,13 @@ function mount(root, c) {
   $('#mw-theme', el).addEventListener('click', onThemeClick);
   $('#mw-theme', el).addEventListener('change', onThemeChange);
   $('#mw-theme', el).addEventListener('submit', (e) => { e.preventDefault(); const v = $('#th-client', el)?.value.trim(); ctx.hub.setWall({ theme: { client: v || '' } }); toast({ title: v ? `Écran aux couleurs de ${v}` : 'Nom du client retiré', tone: 'live' }); });
+  $('#mw-session', el).addEventListener('click', onSessionClick);
+  $('#mw-session', el).addEventListener('submit', onSessionSubmit);
+  clearInterval(screenTimer);
+  screenTimer = setInterval(renderScreen, 5000);
   renderTheme(true);
   update('boot');
+  ctx.hub.listSessions().then((l) => { sessions = l || []; renderSession(); }).catch(() => {});
 }
 
 /* =========================================================================
@@ -116,6 +127,7 @@ function renderPanel(force) {
         <div class="toggle-row"><div class="l"><b>Accepter les réponses</b><small>Clore fige le nuage et prévient les visiteurs</small></div><button class="switch" role="switch" id="mw-accept" aria-label="Accepter les réponses"></button></div>
         <div class="field"><span class="lbl">Réponses par personne</span><div class="chips sm" id="mw-max">${[0, 1, 2, 3].map((n) => `<button class="chip" data-max="${n}" aria-pressed="false">${n ? n : 'Illimité'}</button>`).join('')}</div></div>
       </div>
+      <div class="field mt-3"><span class="lbl">Question à l’écran</span><div class="chips sm" id="mw-layout"><button class="chip" data-layout="centre" aria-pressed="false">Au centre, les mots autour</button><button class="chip" data-layout="haut" aria-pressed="false">Au-dessus du nuage</button></div></div>
       <div class="divider"></div>
       <div class="row wrap"><div><span class="eyebrow">Modération</span><h3 class="h3 mt-1">Mots reçus <span class="dim mono" style="font-size:13px" id="mw-count"></span></h3></div>
         <span class="spacer"></span>
@@ -129,6 +141,7 @@ function renderPanel(force) {
     if (document.activeElement !== q) q.value = w.question || '';
     $('#mw-accept', el).setAttribute('aria-checked', w.accept !== false);
     $$('[data-max]', host).forEach((b) => b.setAttribute('aria-pressed', Number(b.dataset.max) === (Number(w.maxPerPerson) || 0)));
+    $$('[data-layout]', host).forEach((b) => b.setAttribute('aria-pressed', b.dataset.layout === (w.cloudLayout === 'haut' ? 'haut' : 'centre')));
     if (rebuild) {
       const seg = $('#mw-sort', el);
       const moveThumb = () => { const b = seg.querySelector('[aria-selected="true"]'); const th = seg.querySelector('.thumb'); th.style.width = b.offsetWidth + 'px'; th.style.transform = `translateX(${b.offsetLeft}px)`; };
@@ -281,6 +294,7 @@ function onPanelClick(e) {
   const q = e.target.closest('[data-q]'); if (q) { $('#mw-q', el).value = q.dataset.q; hub.setWall({ question: q.dataset.q }); toast({ title: 'Question à l’écran', text: esc(q.dataset.q), tone: 'live' }); return; }
   const qa = e.target.closest('[data-qa]'); if (qa) { $('#mw-qa-t', el).value = qa.dataset.qa; hub.setWall({ qaTitle: qa.dataset.qa }); toast({ title: 'Titre à l’écran', text: esc(qa.dataset.qa), tone: 'live' }); return; }
   const mx = e.target.closest('[data-max]'); if (mx) { hub.setWall({ maxPerPerson: Number(mx.dataset.max) }); return; }
+  const ly = e.target.closest('[data-layout]'); if (ly) { hub.setWall({ cloudLayout: ly.dataset.layout }); return; }
   const rl = e.target.closest('[data-reel]'); if (rl) { hub.setWall({ reelSet: rl.dataset.reel }); return; }
   const pp = e.target.closest('[data-poll]'); if (pp) { const d = POLLS[Number(pp.dataset.poll)]; draft = { title: d.title, options: [...d.options], multiple: false }; $('#mw-poll-t', el).value = d.title; $('#mw-poll-multi', el).setAttribute('aria-checked', 'false'); renderDraftOptions(); return; }
   const ms = e.target.closest('[data-msg]'); if (ms) { $('#mw-msg', el).value = ms.dataset.msg; sendMsg(ms.dataset.msg); return; }
@@ -429,7 +443,12 @@ function linksSheet() {
 }
 
 function update(reason) {
-  if (!el || (reason && !['words', 'wall', 'poll', 'questions', 'hello', 'boot', 'settings'].includes(reason))) return;
+  if (!el) return;
+  if (reason === 'screens') { renderScreen(); return; }
+  if (reason === 'session' || reason === 'sessions') { if (reason === 'sessions' && ctx.hub.state.mode !== 'local') sessions = ctx.hub.state.sessions || sessions; renderSession(); return; }
+  if (reason && !['words', 'wall', 'poll', 'questions', 'hello', 'boot', 'settings'].includes(reason)) return;
+  if (['words', 'poll', 'questions', 'hello', 'boot', 'settings'].includes(reason)) renderSession();
+  if (reason === 'hello' || reason === 'boot') renderScreen();
   const w = wall();
   $$('[data-scene]', el).forEach((b) => { const on = b.dataset.scene === (w.scene || 'cloud'); b.setAttribute('aria-checked', on); on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'); });
   $('#mw-state', el).innerHTML = `<span class="led" data-s="${w.scene === 'black' ? '' : 'hot'}"></span>${SCENES.find((s) => s.id === (w.scene || 'cloud'))?.label || ''}`;
@@ -452,6 +471,141 @@ function fullPreview() {
   host.onclick = close;
   host.onpointerdown = host.onpointerup = null;
   document.addEventListener('keydown', onKey);
+}
+
+/* =========================================================================
+   Écran connecté : l'ordinateur du mur se signale toutes les 5 s
+   ========================================================================= */
+function renderScreen() {
+  const box = $('#mw-screen', el);
+  if (!box) return;
+  const hub = ctx.hub;
+  if (hub.state.mode === 'local') { box.innerHTML = ''; return; }
+  const now = Date.now() + (hub.state.serverOffset || 0);
+  const list = (hub.state.screens || []).filter((s) => now - s.at < 120000);
+  const stateEl = $('#mw-state', el);
+  if (stateEl) stateEl.hidden = list.some((s) => now - s.at <= 15000); // l'écran réel prime sur la scène demandée
+  if (!list.length) { box.innerHTML = `<span class="led" data-s="off"></span>Aucun écran branché`; box.title = 'Ouvrez /ecran sur l’ordinateur du mur : il apparaîtra ici.'; return; }
+  box.innerHTML = list.map((s) => {
+    const lost = now - s.at > 15000;
+    const name = s.locked ? `figé · ${SCENES.find((x) => SLUG[x.id] === s.locked.replace(/^\//, ''))?.label || s.locked}` : (SCENES.find((x) => x.id === s.scene)?.label || '');
+    return `<span class="led" data-s="${lost ? 'warm' : 'live'}"></span>${lost ? `Écran perdu depuis ${Math.round((now - s.at) / 1000)} s` : `Écran ${esc(name)}${s.fs ? ' · plein écran' : ''}${s.w ? ` · ${s.w}×${s.h}` : ''}`}`;
+  }).join('<span class="sep"></span>');
+  box.title = list.map((s) => `${s.id} · depuis ${ago(s.since)}`).join('\n');
+}
+
+/* =========================================================================
+   Session : une prestation = une session ; close, elle garde ses résultats (rapport client)
+   ========================================================================= */
+const fmtDate = (ts) => new Date(ts).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+function renderSession() {
+  const host = $('#mw-session', el);
+  if (!host) return;
+  const hub = ctx.hub;
+  const s = hub.state.session || { name: hub.state.settings?.eventName || 'Salon', client: '', startedAt: 0 };
+  const st = hub.sessionStats();
+  const client = wall().theme?.client || s.client || '';
+  const cloudLink = hub.state.mode === 'hub' ? withToken('/rapport?id=live') : '/rapport?id=live';
+  const stat = (n, l1, l2) => `<div class="ses-stat"><b>${n}</b><span>${n > 1 ? l2 : l1}</span></div>`;
+  $('#mw-ses-r', el).innerHTML = `<span class="led" data-s="live"></span>${st.sends + st.votes + st.questions} participations`;
+  host.innerHTML = `
+    <div class="ses-now">
+      <div class="ses-head">
+        <div><span class="eyebrow">En cours${s.startedAt ? ` · depuis ${fmtDate(s.startedAt)}` : ''}</span>
+          <h3 class="h3 mt-1">${esc(s.name || 'Salon')}${client ? ` <span class="dim">pour</span> ${esc(client)}` : ''}</h3></div>
+        <span class="spacer"></span>
+        <a class="btn btn-quiet btn-sm" href="${cloudLink}" target="_blank" rel="noopener">${icon('book')}Rapport en direct</a>
+        <button class="btn btn-primary btn-sm" data-ses="new">${icon('plus')}Nouvelle session</button>
+      </div>
+      <div class="ses-stats mt-3">
+        ${stat(st.sends, 'mot envoyé', 'mots envoyés')}${stat(st.words, 'mot distinct', 'mots distincts')}${stat(st.votes, 'vote', 'votes')}${stat(st.voters, 'votant', 'votants')}${stat(st.questions, 'question', 'questions')}${stat(st.qvotes, 'soutien', 'soutiens')}
+      </div>
+      <form class="row wrap mt-3" id="mw-ses-f" style="gap:8px">
+        <input class="input" id="mw-ses-name" placeholder="Nom de la session (SBE Marseille, plénière…)" maxlength="80" value="${esc(s.name === 'Salon' ? '' : s.name || '')}" style="flex:1;min-width:220px;height:40px">
+        <input class="input" id="mw-ses-client" placeholder="Client (affiché à l’écran)" maxlength="40" value="${esc(client)}" style="flex:1;min-width:180px;height:40px">
+        <button class="btn btn-quiet btn-sm">${icon('check')}Renommer</button>
+      </form>
+      <p class="dim mt-2" style="font-size:12.5px;margin-bottom:0">Argument de vente : la session interactive est administrée par Médiacom. Le client ne voit que l’écran et le QR ; il repart avec le rapport (mots, votes, questions).</p>
+    </div>
+    <div class="divider"></div>
+    <div class="row wrap"><span class="eyebrow">Sessions closes</span><span class="spacer"></span><span class="dim mono" style="font-size:12px">${sessions.length ? `${sessions.length} archivée${sessions.length > 1 ? 's' : ''}` : ''}</span></div>
+    <div class="ses-list mt-2">${sessions.length ? sessions.map((x) => `<div class="ses-row" data-id="${esc(x.id)}">
+        <div class="t"><b>${esc(x.name || 'Session')}</b>${x.client ? `<span class="dim"> · ${esc(x.client)}</span>` : ''}<small class="dim mono">${fmtDate(x.startedAt || x.endedAt)} → ${fmtDate(x.endedAt)} · ${x.stats?.sends || 0} mots · ${x.stats?.votes || 0} votes · ${x.stats?.questions || 0} questions</small></div>
+        <div class="a"><a class="btn btn-quiet btn-sm" href="${hub.state.mode === 'hub' ? withToken('/rapport?id=' + encodeURIComponent(x.id)) : '/rapport?id=' + encodeURIComponent(x.id)}" target="_blank" rel="noopener">${icon('book')}Rapport</a>
+          <button class="btn btn-quiet btn-sm" data-ses="csv" data-id="${esc(x.id)}">${icon('download')}CSV</button>
+          <button class="btn btn-quiet btn-sm btn-icon" data-ses="del" data-id="${esc(x.id)}" aria-label="Supprimer">${icon('trash')}</button></div>
+      </div>`).join('') : '<p class="dim" style="font-size:13px;margin:0">Aucune session close. « Nouvelle session » archive celle-ci avec ses résultats et repart à zéro pour le client suivant.</p>'}</div>`;
+}
+
+async function onSessionClick(e) {
+  const hub = ctx.hub;
+  const b = e.target.closest('[data-ses]');
+  if (!b) return;
+  if (b.dataset.ses === 'new') return newSessionSheet();
+  if (b.dataset.ses === 'del') {
+    const ok = await confirmSheet({ title: 'Supprimer cette session close ?', text: 'Son rapport et ses résultats disparaissent définitivement.', ok: 'Supprimer', danger: true });
+    if (!ok) return;
+    await hub.deleteSession(b.dataset.id);
+    sessions = await hub.listSessions();
+    renderSession();
+    return;
+  }
+  if (b.dataset.ses === 'csv') {
+    const s = await hub.getSession(b.dataset.id);
+    if (!s) return toast({ title: 'Session introuvable', tone: 'warm' });
+    download(`mediacom-session-${(s.client || s.name || 'session').replace(/[^\w-]+/g, '-').toLowerCase()}.csv`, sessionCSV(s), 'text/csv');
+  }
+}
+function csvCell(v) { let s = v == null ? '' : String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return `"${s.replace(/"/g, '""')}"`; }
+function sessionCSV(s) {
+  const rows = [['Rubrique', 'Texte', 'Nombre', 'Détail'].map(csvCell).join(';')];
+  (s.words || []).forEach((w) => rows.push(['Nuage · ' + (s.question || 'mot'), w.text, w.count, ''].map(csvCell).join(';')));
+  if (s.poll) s.poll.options.forEach((o) => rows.push(['Sondage · ' + s.poll.title, o.label, o.count || 0, s.poll.total ? Math.round(((o.count || 0) / s.poll.total) * 100) + ' %' : ''].map(csvCell).join(';')));
+  (s.questions || []).forEach((q) => rows.push(['Question', q.text, q.votes || 0, [q.answered ? 'répondue' : '', q.pinned ? 'mise en avant' : ''].filter(Boolean).join(', ')].map(csvCell).join(';')));
+  return '﻿' + rows.join('\r\n');
+}
+async function onSessionSubmit(e) {
+  e.preventDefault();
+  if (e.target.id !== 'mw-ses-f') return;
+  const name = $('#mw-ses-name', el).value.trim(), client = $('#mw-ses-client', el).value.trim();
+  await ctx.hub.updateSession({ name: name || 'Salon', client });
+  toast({ title: 'Session renommée', text: esc(name || 'Salon') + (client ? ' · ' + esc(client) : ''), tone: 'live' });
+  renderSession();
+}
+function newSessionSheet() {
+  const hub = ctx.hub;
+  const st = hub.sessionStats();
+  const has = st.sends || st.votes || st.questions;
+  sheet(`<div class="sheet-head"><span class="eyebrow">Session interactive</span><h2>Nouvelle session</h2>
+      <p class="lede">${has ? `La session en cours (${st.sends} mots, ${st.votes} votes, ${st.questions} questions) est archivée avec son rapport.` : 'La session en cours est vide : rien à archiver.'} L’écran repart à zéro, le QR ne change pas.</p></div>
+    <div class="sheet-body"><form class="stack" id="ses-new-f" style="gap:14px">
+      <div class="field"><label for="ses-n">Nom de la session</label><input class="input" id="ses-n" placeholder="Plénière du matin, Convention Acme…" maxlength="80" autofocus></div>
+      <div class="field"><label for="ses-c">Client (affiché à l’écran, vide = Médiacom seul)</label><input class="input" id="ses-c" placeholder="Nom du client" maxlength="40" value="${esc(wall().theme?.client || '')}"></div>
+      <div class="field"><label for="ses-q">Première question du nuage</label><input class="input" id="ses-q" placeholder="${esc(QUESTIONS[0])}" maxlength="120" value="${esc(wall().question || '')}">
+        <div class="chips sm mt-1">${QUESTIONS.map((q) => `<button type="button" class="chip" data-sq="${esc(q)}">${esc(q)}</button>`).join('')}</div></div>
+      ${has ? `<div class="toggle-row"><div class="l"><b>Archiver la session en cours</b><small>Décoché : ses résultats sont perdus</small></div><button type="button" class="switch" role="switch" id="ses-arch" aria-checked="true" aria-label="Archiver"></button></div>` : ''}
+      <div class="row"><span class="spacer"></span><button class="btn btn-primary">${icon('play')}Ouvrir la session</button></div>
+    </form></div>`, {
+    onMount: (d) => {
+      d.addEventListener('click', (e) => {
+        const c = e.target.closest('[data-sq]'); if (c) { d.querySelector('#ses-q').value = c.dataset.sq; return; }
+        const a = e.target.closest('#ses-arch'); if (a) a.setAttribute('aria-checked', a.getAttribute('aria-checked') !== 'true');
+      });
+      d.querySelector('#ses-new-f').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = d.querySelector('#ses-n').value.trim(), client = d.querySelector('#ses-c').value.trim(), question = d.querySelector('#ses-q').value.trim();
+        const archive = d.querySelector('#ses-arch')?.getAttribute('aria-checked') !== 'false';
+        closeSheet();
+        try {
+          await hub.newSession({ name, client, question, archive });
+          sessions = await hub.listSessions();
+          hub.setWall({ scene: 'cloud' });
+          renderSession();
+          toast({ title: `Session ${esc(name || 'ouverte')}`, text: archive && has ? 'La précédente est archivée, son rapport est prêt.' : 'Écran et compteurs à zéro.', tone: 'live' });
+        } catch (err) { toast({ title: 'Session impossible', text: esc(err.message), tone: 'warm' }); }
+      });
+    },
+  });
 }
 
 export default {

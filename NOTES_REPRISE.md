@@ -1,4 +1,13 @@
-# Médiacom Event OS : notes de reprise (15/10/2026)
+# Médiacom Event OS : notes de reprise (16/10/2026)
+
+## Passe du 16/10/2026 (seconde lecture des vocaux ; rapport `docs/rapports/2026-10-16/RAPPORT.md`)
+- **Sessions** : `db.session` / `db.sessions`, routes `/api/session/new`, `/api/sessions[/live|/:id|/:id/export.csv]`, module 04 de l'onglet Écran, mode local dans `localStorage mc_sessions`. Démo en ligne : clés `session`, `sessions`, `screens`, `settings` dans la table `kv` (pas de nouvelle table).
+- **Rapport** `/rapport` (`rapport.html`, `js/rapport.js`, `css/rapport.css`) : jeton du hub dans l'URL (`withToken`), sinon démo en ligne, sinon cache de la tablette.
+- **Écran surveillé** : `POST /api/screen/ping` toutes les 5 s depuis `/ecran` (mémoire serveur, purge 20 s), état dans `#mw-screen` ; Wake Lock ; cache `mc_ecran_last` ; lanceurs `tools/ecran/`.
+- **Nuage** : `wall.cloudLayout` `centre` (défaut) ou `haut` ; `titleRect()` réservé dans la spirale de `place()`.
+- **Book** : `settings.bookHide / bookShow`, `setBookOverrides()` dans `data.js`, `publicWall().book` pour l'écran, module 03 du Pass.
+- Piège : `networkidle` de Playwright ne se déclenche jamais sur `/ecran` (SSE + pings), attendre `load`.
+- Session en ligne renommée « Démo SBE Marseille », jeu de démo rechargé (10 mots, sondage, 2 questions).
 
 ## Passe du 15/10/2026 (retour de Nolan, 3 vocaux du 13/10 ; rapport `docs/rapports/2026-10-15/RAPPORT.md`)
 - Sorties d'écran dédiées : `/ecran` (suit la tablette), `/ecran/<scène>` figées, sortie pure sans bandeau. Nolan alimente le mur par un boîtier de commutation : une adresse par entrée.

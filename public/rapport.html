@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rapport de session · Médiacom</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/assets/logo-m.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/jost.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/jbmono-500.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/rapport.css">
+  <script type="module" src="/js/rapport.js"></script>
+</head>
+<body>
+  <nav class="bar no-print" id="bar">
+    <a class="back" href="/#mur" aria-label="Retour à la tablette">‹ Tablette</a>
+    <span class="bar-t" id="bar-t">Rapport de session</span>
+    <span class="spacer"></span>
+    <button class="btn" id="b-live" hidden>Actualiser</button>
+    <button class="btn primary" id="b-print">Imprimer · PDF</button>
+  </nav>
+
+  <main class="sheet" id="sheet" aria-busy="true">
+    <p class="loading" id="loading">Lecture de la session…</p>
+  </main>
+</body>
+</html>

@@ -3,7 +3,9 @@
 // Aucun contact n'est envoyé ici : sur le lien public, les fiches restent dans l'appareil.
 
 const THEME_DEFAULT = { style: 'sobre', c1: '#0a2f6b', c2: '#3192ff', brand: true, logo: '', client: '' };
-const WALL_DEFAULT = { scene: 'cloud', accept: true, message: '', question: '', photo: 'scene-m-rouge', countdownTo: 0, countdownFrom: 0, maxPerPerson: 0, reelSet: 'seminaire', externalUrl: '', qaTitle: '', qaOpen: true, theme: THEME_DEFAULT, updatedAt: 0 };
+const WALL_DEFAULT = { scene: 'cloud', accept: true, message: '', question: '', photo: 'scene-m-rouge', countdownTo: 0, countdownFrom: 0, maxPerPerson: 0, reelSet: 'seminaire', externalUrl: '', qaTitle: '', qaOpen: true, cloudLayout: 'centre', theme: THEME_DEFAULT, updatedAt: 0 };
+const SETTINGS_DEFAULT = { eventName: 'Salon', bookAll: false, bookHide: [], bookShow: [] };
+const MAX_SESSIONS = 12;
 const MAX_WORDS = 300;
 const MAX_QUESTIONS = 200;
 const THEME_STYLES = new Set(['sobre', 'lumiere', 'uni', 'degrade', 'photo']);
@@ -55,6 +57,33 @@ async function questions(db, all = false) {
   const { results } = await db.prepare(`SELECT id, text, votes, hidden, answered, pinned, at FROM questions ${all ? '' : 'WHERE hidden = 0'} ORDER BY at ASC`).all();
   return results.map((q) => ({ ...q, hidden: !!q.hidden, answered: !!q.answered, pinned: !!q.pinned }));
 }
+const getSettings = async (db) => ({ ...SETTINGS_DEFAULT, ...(await kvGet(db, 'settings', {})) });
+const ids = (v) => [...new Set([].concat(v || []).map((x) => String(x).replace(/[^\w-]/g, '').slice(0, 40)).filter(Boolean))].slice(0, 120);
+
+/* --- Sessions : une prestation = une session close avec ses résultats --- */
+async function getSession(db) {
+  let s = await kvGet(db, 'session', null);
+  if (!s) { s = { id: rid(), name: 'Salon', client: '', startedAt: Date.now() }; await kvSet(db, 'session', s); }
+  return s;
+}
+async function snapshot(db) {
+  const [s, w, ws, p, qs, st] = await Promise.all([getSession(db), getWall(db), words(db), pollPublic(db), questions(db), getSettings(db)]);
+  const stats = { words: ws.length, sends: ws.reduce((a, x) => a + (x.count || 1), 0), votes: p?.total || 0, voters: p?.voters || 0, questions: qs.length, qvotes: qs.reduce((a, q) => a + (q.votes || 0), 0) };
+  return {
+    ...s, name: s.name || st.eventName, client: w.theme?.client || s.client || '', stats, endedAt: Date.now(),
+    question: w.question || '', qaTitle: w.qaTitle || '',
+    words: ws.sort((a, b) => b.count - a.count || a.at - b.at).slice(0, 120).map(({ text, count, at }) => ({ text, count, at })),
+    poll: p,
+    questions: qs.sort((a, b) => b.votes - a.votes || a.at - b.at).slice(0, 150),
+  };
+}
+const sessionList = (list) => list.map(({ id, name, client, startedAt, endedAt, stats }) => ({ id, name, client, startedAt, endedAt, stats }));
+async function screensList(db) {
+  const all = await kvGet(db, 'screens', {});
+  const now = Date.now();
+  for (const k of Object.keys(all)) if (now - all[k].at > 20000) delete all[k];
+  return Object.values(all).sort((a, b) => a.since - b.since);
+}
 
 export async function onRequest({ request, env, params }) {
   const db = env.DB;
@@ -77,15 +106,19 @@ export async function onRequest({ request, env, params }) {
 
     if (path === '/wall/state' && method === 'GET') {
       const all = new URL(request.url).searchParams.has('all');
-      return json({ wall: await getWall(db), words: await words(db, all), poll: await pollPublic(db), questions: await questions(db, all), serverTime: Date.now() });
+      const st = await getSettings(db);
+      const out = { wall: await getWall(db), words: await words(db, all), poll: await pollPublic(db), questions: await questions(db, all), eventName: st.eventName, book: { hide: st.bookHide, show: st.bookShow }, serverTime: Date.now() };
+      if (all) Object.assign(out, { settings: st, screens: await screensList(db), session: await getSession(db), sessions: sessionList(await kvGet(db, 'sessions', [])) });
+      return json(out);
     }
 
     if (path === '/wall' && method === 'PUT') {
       const b = await body();
       const w = await getWall(db);
-      for (const k of ['scene', 'accept', 'message', 'question', 'photo', 'countdownTo', 'countdownFrom', 'maxPerPerson', 'reelSet', 'externalUrl', 'qaTitle', 'qaOpen', 'theme']) {
+      for (const k of ['scene', 'accept', 'message', 'question', 'photo', 'countdownTo', 'countdownFrom', 'maxPerPerson', 'reelSet', 'externalUrl', 'qaTitle', 'qaOpen', 'theme', 'cloudLayout']) {
         if (!(k in b)) continue;
         if (k === 'accept' || k === 'qaOpen') w[k] = !!b[k];
+        else if (k === 'cloudLayout') w[k] = b[k] === 'haut' ? 'haut' : 'centre';
         else if (k.startsWith('countdown') || k === 'maxPerPerson') w[k] = Math.max(0, Number(b[k]) || 0);
         else if (k === 'externalUrl') w[k] = /^https?:\/\//i.test(String(b[k] || '')) ? String(b[k]).slice(0, 500) : '';
         else if (k === 'theme') w.theme = cleanTheme({ ...w.theme, ...(b.theme || {}) });
@@ -210,6 +243,69 @@ export async function onRequest({ request, env, params }) {
     if (path === '/questions/clear' && method === 'POST') {
       await db.batch([db.prepare('DELETE FROM questions'), db.prepare('DELETE FROM qvotes')]);
       return json({ ok: true });
+    }
+
+    /* --- Écran connecté (ordinateur du mur) --- */
+    if (path === '/screen/ping' && method === 'POST') {
+      const b = await body();
+      const id = String(b.id || '').replace(/[^\w-]/g, '').slice(0, 24);
+      if (!id) return json({ error: 'id' }, 422);
+      const all = await kvGet(db, 'screens', {});
+      const now = Date.now();
+      for (const k of Object.keys(all)) if (now - all[k].at > 20000) delete all[k];
+      all[id] = { id, scene: cleanText(b.scene, 16), locked: cleanText(b.locked, 16), w: Number(b.w) || 0, h: Number(b.h) || 0, fs: !!b.fs, since: all[id]?.since || now, at: now };
+      await kvSet(db, 'screens', all);
+      return json({ ok: true });
+    }
+
+    /* --- Réglages partagés (nom de l'événement, validation du Book) --- */
+    if (path === '/settings' && method === 'PUT') {
+      const b = await body();
+      const st = await getSettings(db);
+      if ('eventName' in b) st.eventName = cleanText(b.eventName, 120) || 'Salon';
+      if ('bookAll' in b) st.bookAll = !!b.bookAll;
+      if ('bookHide' in b) st.bookHide = ids(b.bookHide);
+      if ('bookShow' in b) st.bookShow = ids(b.bookShow);
+      await kvSet(db, 'settings', st);
+      return json({ ok: true, settings: st });
+    }
+
+    /* --- Sessions --- */
+    if (path === '/session/new' && method === 'POST') {
+      const b = await body();
+      const snap = await snapshot(db);
+      let list = await kvGet(db, 'sessions', []);
+      if (b.archive !== false && (snap.stats.sends || snap.stats.votes || snap.stats.questions)) list = [snap, ...list].slice(0, MAX_SESSIONS);
+      await db.batch([db.prepare('DELETE FROM words'), db.prepare('DELETE FROM wordsby'), db.prepare('DELETE FROM pvotes'), db.prepare('DELETE FROM questions'), db.prepare('DELETE FROM qvotes')]);
+      const name = cleanText(b.name, 80), client = cleanText(b.client, 40);
+      const st = await getSettings(db);
+      if (name) st.eventName = name;
+      const session = { id: rid(), name: name || st.eventName, client, startedAt: Date.now() };
+      const w = await getWall(db);
+      if ('client' in b) w.theme = cleanTheme({ ...w.theme, client, logo: client && client !== w.theme.client ? '' : w.theme.logo });
+      if (b.question !== undefined) w.question = cleanText(b.question, 160);
+      w.updatedAt = Date.now();
+      await Promise.all([kvSet(db, 'poll', null), kvSet(db, 'sessions', list), kvSet(db, 'session', session), kvSet(db, 'settings', st), kvSet(db, 'wall', w)]);
+      return json({ ok: true, session, sessions: sessionList(list) });
+    }
+    if (path === '/session' && method === 'PUT') {
+      const b = await body();
+      const s = await getSession(db);
+      const st = await getSettings(db);
+      if ('name' in b) { s.name = cleanText(b.name, 80) || s.name; st.eventName = s.name; }
+      if ('client' in b) { s.client = cleanText(b.client, 40); const w = await getWall(db); w.theme = cleanTheme({ ...w.theme, client: s.client }); w.updatedAt = Date.now(); await kvSet(db, 'wall', w); }
+      await Promise.all([kvSet(db, 'session', s), kvSet(db, 'settings', st)]);
+      return json({ ok: true, session: s });
+    }
+    if (path === '/sessions' && method === 'GET') return json({ session: await getSession(db), sessions: sessionList(await kvGet(db, 'sessions', [])) });
+    if (path === '/sessions/live' && method === 'GET') return json({ ...(await snapshot(db)), live: true });
+    const sm = /^\/sessions\/([\w-]+)$/.exec(path);
+    if (sm) {
+      const list = await kvGet(db, 'sessions', []);
+      const s = list.find((x) => x.id === sm[1]);
+      if (!s) return json({ error: 'session introuvable' }, 404);
+      if (method === 'DELETE') { await kvSet(db, 'sessions', list.filter((x) => x.id !== sm[1])); return json({ ok: true }); }
+      return json(s);
     }
 
     return json({ error: 'non disponible dans la démo en ligne' }, 404);

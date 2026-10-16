@@ -1,4 +1,4 @@
-import { COMPANY, OPERATORS, opById } from '../data.js';
+import { COMPANY, OPERATORS, opById, PHOTOS, VIDEOS, isSem, photo, poster } from '../data.js';
 import { icon, esc, $, $$, toast, qrSVG, vcard, download, ago, LOGO_M } from '../ui.js';
 import { attractMinutes, setAttractMinutes } from '../attract.js';
 import { withToken } from '../hub.js';
@@ -6,6 +6,8 @@ import { confirmSheet } from '../ui.js';
 
 let el, ctx, info = null;
 let pick = 'vcard';
+let bvFilter = 'all';
+const MEDIA = () => [...VIDEOS.map((v) => ({ ...v, type: 'video' })), ...PHOTOS.map((p) => ({ ...p, type: 'photo' }))];
 
 const CARD = vcard({ name: 'Éric Algoud', org: `Médiacom · ${COMPANY.baseline}`, title: 'Direction', tel: COMPANY.phone, tel2: COMPANY.phoneAlt,
   email: COMPANY.email, url: COMPANY.site, adr: '25 boulevard de Saint-Marcel;Marseille;;13011;France',
@@ -70,7 +72,41 @@ function mount(root, c) {
         </form>
       </div>
     </article>
+
+    <article class="module span-12" style="--i:2">
+      <header class="mod-head"><span class="n">03</span><span class="t">Book · validation d’Éric</span><span class="r" id="bv-r"></span></header>
+      <div class="mod-body">
+        <p class="lede" style="margin:0 0 14px">Relecture de Nolan : concerts, festivals et gala sportif n’ont rien à faire sur un salon du séminaire, et deux vidéos restent à confirmer. Un toucher retire ou remet chaque référence dans le Book et le showreel. La décision finale revient à Éric.</p>
+        <div class="row wrap" style="gap:8px"><div class="seg" id="bv-filter" style="height:34px"><span class="thumb"></span><button aria-selected="true" data-f="all" style="height:30px;font-size:12px">Tout</button><button aria-selected="false" data-f="on" style="height:30px;font-size:12px">Montrées</button><button aria-selected="false" data-f="off" style="height:30px;font-size:12px">Retirées</button><button aria-selected="false" data-f="video" style="height:30px;font-size:12px">Vidéos</button></div>
+          <span class="spacer"></span><button class="btn btn-quiet btn-sm" id="bv-copy">${icon('copy')}Copier la liste pour Éric</button><button class="btn btn-quiet btn-sm" id="bv-reset">${icon('reset')}Sélection d’origine</button></div>
+        <div class="bookv mt-3" id="bv-grid"></div>
+      </div>
+    </article>
   </div>`;
+  const bvSeg = $('#bv-filter', el);
+  const bvThumb = () => { const b = bvSeg.querySelector('[aria-selected="true"]'); const t = bvSeg.querySelector('.thumb'); t.style.width = b.offsetWidth + 'px'; t.style.transform = `translateX(${b.offsetLeft - 4}px)`; };
+  new ResizeObserver(bvThumb).observe(bvSeg);
+  bvSeg.addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (!b) return; bvFilter = b.dataset.f; $$('[data-f]', bvSeg).forEach((x) => x.setAttribute('aria-selected', x === b)); bvThumb(); renderBook(bvFilter); });
+  $('#bv-grid', el).addEventListener('click', (e) => {
+    const b = e.target.closest('[data-bv]');
+    if (!b) return;
+    const m = MEDIA().find((x) => x.f === b.dataset.bv);
+    if (!m) return;
+    const s = ctx.hub.state.settings || {};
+    let hide = [...(s.bookHide || [])], show = [...(s.bookShow || [])];
+    const wasOn = isSem(m);
+    if (wasOn) { if (m.sem !== false) hide.push(m.f); show = show.filter((x) => x !== m.f); }
+    else { if (m.sem === false) show.push(m.f); hide = hide.filter((x) => x !== m.f); }
+    ctx.hub.setSettings({ bookHide: [...new Set(hide)], bookShow: [...new Set(show)] });
+    toast({ title: wasOn ? 'Retirée du Book' : 'Remise dans le Book', text: esc(m.c), tone: wasOn ? 'warm' : 'live' });
+  });
+  $('#bv-reset', el).addEventListener('click', () => { ctx.hub.setSettings({ bookHide: [], bookShow: [] }); toast({ title: 'Sélection d’origine', text: 'Retour au tri séminaire proposé par Nolan.', tone: 'blue' }); });
+  $('#bv-copy', el).addEventListener('click', async () => {
+    const off = MEDIA().filter((m) => !isSem(m)), on = MEDIA().filter((m) => isSem(m));
+    const txt = `Book Médiacom · salon du séminaire · ${new Date().toLocaleDateString('fr-FR')}\n\nRETIRÉES (${off.length}) :\n${off.map((m) => `- ${m.type === 'video' ? 'Vidéo' : 'Photo'} · ${m.c}${m.k ? ` (${m.k})` : ''}`).join('\n')}\n\nMONTRÉES (${on.length}) :\n${on.map((m) => `- ${m.type === 'video' ? 'Vidéo' : 'Photo'} · ${m.c}`).join('\n')}\n\nÀ valider par Éric : droits des photos et vidéos, triptyque d’Allauch (origine inconnue).`;
+    try { await navigator.clipboard.writeText(txt); toast({ title: 'Liste copiée', text: `${off.length} retirées, ${on.length} montrées`, tone: 'live' }); } catch { toast({ title: 'Copie impossible', tone: 'warm' }); }
+  });
+  renderBook(bvFilter);
 
   const seg = $('#ps-pick', el);
   const moveThumb = () => { const b = seg.querySelector('[aria-selected="true"]'); const t = seg.querySelector('.thumb'); t.style.width = b.offsetWidth + 'px'; t.style.transform = `translateX(${b.offsetLeft - 4}px)`; };
@@ -105,6 +141,25 @@ function mount(root, c) {
   renderQR();
   loadInfo();
   update();
+}
+
+// Validation du Book : chaque référence, son état, et le pourquoi (tri Nolan ou décision prise sur la tablette)
+function renderBook(filter = bvFilter) {
+  const host = $('#bv-grid', el);
+  if (!host) return;
+  const s = ctx.hub.state.settings || {};
+  const hide = new Set(s.bookHide || []), show = new Set(s.bookShow || []);
+  const all = MEDIA();
+  const list = all.filter((m) => filter === 'all' || (filter === 'video' ? m.type === 'video' : filter === 'on' ? isSem(m) : !isSem(m)));
+  const off = all.filter((m) => !isSem(m)).length;
+  $('#bv-r', el).innerHTML = `<span class="led" data-s="${off ? 'warm' : 'live'}"></span>${all.length - off} montrées · ${off} retirées`;
+  host.innerHTML = list.length ? list.map((m) => {
+    const on = isSem(m);
+    const why = show.has(m.f) ? 'remise sur la tablette' : hide.has(m.f) ? 'retirée sur la tablette' : m.sem === false ? 'tri Nolan : hors séminaire' : '';
+    return `<button class="bv-card ${on ? 'on' : 'off'}" data-bv="${esc(m.f)}" aria-pressed="${on}" title="${on ? 'Retirer du Book' : 'Remettre dans le Book'}">
+      <span class="bv-img"><img src="${m.type === 'video' ? poster(m.f) : photo(m.f, true)}" alt="" loading="lazy">${m.type === 'video' ? `<i class="bv-play">${icon('play')}</i>` : ''}<i class="bv-state">${on ? 'Book' : 'Retirée'}</i></span>
+      <span class="bv-t"><b>${esc(m.c)}</b><small>${esc([m.type === 'video' ? 'Vidéo' : 'Photo', m.k, why].filter(Boolean).join(' · '))}</small></span></button>`;
+  }).join('') : '<p class="dim" style="margin:0">Rien dans ce filtre.</p>';
 }
 
 function renderQR() {
@@ -161,6 +216,7 @@ function update(reason) {
   set('#ps-pass', s.wifiPass);
   set('#ps-pub', s.publicUrl);
   $('#ps-bookall', el)?.setAttribute('aria-checked', s.bookAll === true);
+  if (!reason || ['settings', 'hello', 'boot'].includes(reason)) renderBook();
   const st = ctx.hub.state.status;
   $('#ps-hub', el).innerHTML = `<span class="led" data-s="${st === 'online' ? 'live' : st === 'local' ? 'cold' : 'off'}"></span>${{ online: 'en ligne', local: 'mode local', offline: 'hors ligne', connecting: 'connexion', unpaired: 'non appairée' }[st]}`;
   const devs = ctx.hub.state.presence;

@@ -28,7 +28,9 @@ La page `http://localhost:3000/setup` s'ouvre avec les QR codes de mise en servi
 - **Book** : deux ouvertures (séminaires et conventions ; MediaScène 60 m², 3-en-1 80 à 120 m², 160 m² avec régie, chiffres des fiches techniques), photos réelles de mediacom.org agrandies à 2 880 px, mode présentation plein écran. Sélection séminaire par défaut (concerts, festivals et gala sportif en réserve, réglage « Tout le book » dans Pass).
 - **Scène 3D** : plateau, mur LED incurvé animé, truss, lyres et faisceaux, salle en plénière, gala ou concert ; résolution et cabinets calculés. Format **MediaScène** à l'échelle des fiches (60, 80, 100, 120 m²) avec déploiement hydraulique animé.
 - **Bilan du stand** (`/bilan`) : document imprimable en PDF pour Éric (contacts chauds à rappeler, profils, équipe, besoins, affluence, mots du mur), résumé envoyé par e-mail.
-- **Pass & réglages** : QR visiteurs (fiche contact, site, MediaScène, avis Google), appairage, Wi-Fi du stand, nom de l'événement.
+- **Pass & réglages** : QR visiteurs (fiche contact, site, MediaScène, avis Google), appairage, Wi-Fi du stand, nom de l'événement, **validation du Book** (chaque référence retirée ou remise d'un toucher, liste à copier pour Éric).
+- **Sessions interactives** (onglet Écran, module 04) : une prestation = une session (nom, client, question d'ouverture). « Nouvelle session » archive la précédente avec ses résultats et repart à zéro sans changer les liens. **Rapport de session** `/rapport?id=live` ou `?id=<session>` : A4 imprimable (mots, sondage, questions, compteurs), CSV. C'est ce que le client emporte.
+- **Écran surveillé** : la page `/ecran` se signale toutes les 5 s, la tablette affiche « Écran Nuage · 1600×800 · plein écran » ou « Écran perdu depuis 20 s ». Veille bloquée, dernier état gardé en local. Lanceurs kiosque pour l'ordinateur du mur : `tools/ecran/Ecran-Mediacom.bat` (Windows) et `.command` (Mac).
 
 ## Mise en service (une fois)
 

@@ -3,7 +3,7 @@
 // Adresses : /mur (sortie habillée, suit la tablette) · /ecran (sortie pure pour l'ordinateur du mur, suit la tablette)
 //            /ecran/nuage, /ecran/sondage, /ecran/questions, /ecran/showreel, /ecran/mediascene, /ecran/message, /ecran/externe, /ecran/noir (figés)
 import { wallFeed } from './hub.js';
-import { PHOTOS, VIDEOS, MEDIASCENE, COMPANY, isSem, photo, video, poster } from './data.js';
+import { PHOTOS, VIDEOS, MEDIASCENE, COMPANY, isSem, setBookOverrides, photo, video, poster } from './data.js';
 import { LOGO_M, qrSVG, esc, wifiPayload } from './ui.js';
 
 const SLUGS = { nuage: 'cloud', sondage: 'poll', questions: 'questions', showreel: 'reel', mediascene: 'mediascene', message: 'message', externe: 'external', noir: 'black' };
@@ -45,9 +45,13 @@ function applyTheme() {
   const light = (t.style === 'uni' && luminance(t.c1) > 0.5) || (t.style === 'degrade' && (luminance(t.c1) + luminance(t.c2)) / 2 > 0.5);
   wallEl.classList.toggle('ink-dark', light);
   wallEl.classList.toggle('no-brand', t.brand === false);
+  const by = t.brand !== false ? `<span class="w-by"><span class="w-m">${LOGO_M}</span><span>Médiacom</span></span>` : '';
+  // Aux couleurs du client : son logo, sinon son nom en tête ; Médiacom signe en petit
   $('#w-brand').innerHTML = t.logo
-    ? `<img class="w-client" src="${t.logo}" alt="${esc(t.client || 'Client')}">${t.brand !== false ? `<span class="w-by"><span class="w-m">${LOGO_M}</span><span>Médiacom</span></span>` : ''}`
-    : `<span class="w-m">${LOGO_M}</span><span class="w-word">MEDIACOM</span><span class="w-base">Le son · la lumière · l’image</span>`;
+    ? `<img class="w-client" src="${t.logo}" alt="${esc(t.client || 'Client')}">${by}`
+    : t.client
+      ? `<span class="w-word w-client-name">${esc(t.client)}</span>${by}`
+      : `<span class="w-m">${LOGO_M}</span><span class="w-word">MEDIACOM</span><span class="w-base">Le son · la lumière · l’image</span>`;
 }
 
 /* ---------- QR de participation ---------- */
@@ -107,8 +111,18 @@ function layout() {
   if (!placed) placed = place(list.slice(0, 30), W, H, cqw, maxC, scale);
   render(placed || [], cqw);
 }
+// Question au centre (relecture Nolan) : le nuage s'organise autour d'elle, jamais dessus
+function titleRect() {
+  const t = $('#w-title');
+  if (wallEl.dataset.layout !== 'centre' || t.hidden) return null;
+  const a = t.getBoundingClientRect(), c = cloudEl.getBoundingClientRect();
+  const pad = wallEl.clientWidth * 0.012;
+  return { x: a.left - c.left - pad, y: a.top - c.top - pad, w: a.width + pad * 2, h: a.height + pad * 2 };
+}
 function place(list, W, H, cqw, maxC, scale) {
   const rects = [], out = [];
+  const tr = titleRect();
+  if (tr) rects.push(tr);
   const cx = W / 2, cy = H / 2;
   for (let i = 0; i < list.length; i++) {
     const w = list[i];
@@ -345,6 +359,8 @@ function setScene(scene) {
 function applyWall() {
   const w = state.wall || {};
   applyTheme();
+  const lay = w.cloudLayout === 'haut' ? 'haut' : 'centre';
+  if (wallEl.dataset.layout !== lay) { wallEl.dataset.layout = lay; if (current === 'cloud') fontReady.then(() => requestAnimationFrame(layout)); }
   setScene(locked || w.scene || 'cloud');
   renderMessage(w);
   renderTitle();
@@ -372,9 +388,18 @@ function applyWords() {
   if (current === 'cloud') fontReady.then(layout);
 }
 
+// Dernier état connu : à la relance de l'ordinateur du mur, l'écran repart sur la bonne scène avant même le réseau
+let cacheTimer = 0;
+function remember() {
+  if (preview) return;
+  clearTimeout(cacheTimer);
+  cacheTimer = setTimeout(() => { try { localStorage.setItem('mc_ecran_last', JSON.stringify({ wall: state.wall, words: state.words, poll: state.poll, questions: state.questions, eventName: state.eventName, book: state.book })); } catch { /* stockage plein ou privé */ } }, 1500);
+}
 function onData(d) {
   if (d.eventName) state.eventName = d.eventName;
+  if (d.book) { state.book = d.book; setBookOverrides(d.book); if (current === 'reel') { reelKey = ''; startReel(); } }
   if (d.wall) { state.wall = d.wall; applyWall(); }
+  remember();
   if (d.words) { state.words = d.words.filter((w) => !w.hidden); applyWords(); }
   if (d.poll !== undefined) { state.poll = d.poll; if (current === 'poll') { renderPoll(); renderTitle(); } counts(); }
   if (d.questions) { state.questions = d.questions; if (current === 'questions') renderQA(); counts(); }
@@ -391,7 +416,22 @@ if (preview) {
   addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.type === 'mc-wall') onData(e.data); });
   parent.postMessage({ type: 'mc-wall-ready' }, location.origin);
 } else {
+  try { const c = JSON.parse(localStorage.getItem('mc_ecran_last') || 'null'); if (c?.wall) onData(c); } catch { /* pas de cache */ }
   wallFeed(onData);
+
+  // L'ordinateur du mur ne doit jamais s'endormir ni disparaître sans que la tablette le sache
+  let lock = null;
+  const keepAwake = async () => { try { lock = await navigator.wakeLock?.request('screen'); } catch { /* refusé hors HTTPS ou onglet caché */ } };
+  keepAwake();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && (!lock || lock.released)) keepAwake(); });
+  if (location.protocol.startsWith('http')) {
+    let sid = '';
+    try { sid = localStorage.getItem('mc_screen_id') || ''; if (!sid) { sid = 'scr-' + Math.random().toString(36).slice(2, 8); localStorage.setItem('mc_screen_id', sid); } } catch { sid = 'scr-' + Math.random().toString(36).slice(2, 8); }
+    const ping = () => fetch('/api/screen/ping', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: sid, scene: current || state.wall.scene || '', locked: locked || '', w: innerWidth, h: innerHeight, fs: !!document.fullscreenElement }), keepalive: true }).catch(() => {});
+    setTimeout(ping, 400); // après la première scène
+    setInterval(ping, 5000);
+    document.addEventListener('fullscreenchange', ping);
+  }
 }
 
 new ResizeObserver(() => current === 'cloud' && layout()).observe(wallEl);

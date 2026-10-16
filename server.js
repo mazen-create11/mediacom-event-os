@@ -63,12 +63,27 @@ const db = Object.assign(
     pollVotes: {},       // pollId -> participant -> [optionId]
     questions: [],       // { id, text, votes, voters: [participant], hidden, answered, at }
     wordsBy: {},         // participant -> nombre de mots (limite par personne, 0 = illimité)
+    // Sessions (relecture Nolan : « créer une session », un service réutilisé à chaque prestation)
+    session: null,       // { id, name, client, startedAt } : la session en cours
+    sessions: [],        // sessions closes, avec leurs résultats (rapport client)
   },
   loadDB()
 );
 // Valeurs ajoutées après la première mise en service : complétées sans écraser l'existant
-db.wall = Object.assign({ maxPerPerson: 0, reelSet: 'seminaire', externalUrl: '', qaTitle: '', qaOpen: true, theme: { style: 'sobre', c1: '#0a2f6b', c2: '#3192ff', brand: true, logo: '', client: '' } }, db.wall);
+db.wall = Object.assign({ maxPerPerson: 0, reelSet: 'seminaire', externalUrl: '', qaTitle: '', qaOpen: true, cloudLayout: 'centre', theme: { style: 'sobre', c1: '#0a2f6b', c2: '#3192ff', brand: true, logo: '', client: '' } }, db.wall);
 db.wall.theme = Object.assign({ style: 'sobre', c1: '#0a2f6b', c2: '#3192ff', brand: true, logo: '', client: '' }, db.wall.theme || {});
+db.session ||= { id: crypto.randomUUID().slice(0, 8), name: db.settings.eventName || 'Salon', client: '', startedAt: Date.now() };
+db.sessions ||= [];
+db.settings.bookHide ||= [];
+db.settings.bookShow ||= [];
+
+// Écrans connectés (ordinateur du mur de Nolan) : signalés par /api/screen/ping, jamais enregistrés
+const screens = new Map();
+function screenList() {
+  const now = Date.now();
+  for (const [k, s] of screens) if (now - s.at > 20000) screens.delete(k);
+  return [...screens.values()].sort((a, b) => a.since - b.since);
+}
 
 let saveTimer = null;
 let saveError = null;
@@ -141,8 +156,39 @@ const qPublic = (q) => ({ id: q.id, text: q.text, votes: q.votes || 0, answered:
 function questionsPublic() {
   return db.questions.filter((q) => !q.hidden).map(qPublic);
 }
+const bookPublic = () => ({ hide: db.settings.bookHide || [], show: db.settings.bookShow || [] });
 function publicWall() {
-  return { wall: db.wall, words: db.words.filter((w) => !w.hidden), poll: pollPublic(), questions: questionsPublic(), eventName: db.settings.eventName };
+  return { wall: db.wall, words: db.words.filter((w) => !w.hidden), poll: pollPublic(), questions: questionsPublic(), eventName: db.settings.eventName, book: bookPublic() };
+}
+
+/* ---------- Sessions : une prestation = une session, close avec ses résultats ---------- */
+function sessionStats() {
+  const words = db.words.filter((w) => !w.hidden);
+  const p = pollPublic();
+  const qs = db.questions.filter((q) => !q.hidden);
+  return { words: words.length, sends: words.reduce((s, w) => s + (w.count || 1), 0), votes: p?.total || 0, voters: p?.voters || 0, questions: qs.length, qvotes: qs.reduce((s, q) => s + (q.votes || 0), 0) };
+}
+function sessionMeta() {
+  return { ...db.session, name: db.session.name || db.settings.eventName || 'Salon', client: db.wall.theme?.client || db.session.client || '', stats: sessionStats() };
+}
+function sessionSnapshot() {
+  return {
+    ...sessionMeta(), endedAt: Date.now(),
+    question: db.wall.question || '', qaTitle: db.wall.qaTitle || '',
+    words: db.words.filter((w) => !w.hidden).sort((a, b) => b.count - a.count || a.at - b.at).slice(0, 120).map(({ text, count, at }) => ({ text, count, at })),
+    poll: pollPublic(),
+    questions: db.questions.filter((q) => !q.hidden).sort((a, b) => b.votes - a.votes || a.at - b.at).slice(0, 150).map(qPublic),
+  };
+}
+const sessionList = () => db.sessions.map(({ id, name, client, startedAt, endedAt, stats }) => ({ id, name, client, startedAt, endedAt, stats }));
+function broadcastSessionReset() {
+  broadcast('words', []); broadcast('words:all', [], { staffOnly: true });
+  broadcast('poll', null);
+  broadcast('questions', []); broadcast('questions:all', [], { staffOnly: true });
+  broadcast('wall', publicWall());
+  broadcast('settings', db.settings, { staffOnly: true });
+  broadcast('session', sessionMeta(), { staffOnly: true });
+  broadcast('sessions', sessionList(), { staffOnly: true });
 }
 const pidOf = (b) => String(b?.pid || '').replace(/[^\w-]/g, '').slice(0, 40) || 'anonyme';
 const cleanText = (raw, max) => String(raw || '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -236,7 +282,7 @@ const MIME = {
 };
 
 const ALIASES = { '/': '/index.html', '/mur': '/mur.html', '/display.html': '/mur.html', '/nuage': '/nuage.html', '/client.html': '/nuage.html', '/live': '/nuage.html',
-  '/master': '/master.html', '/bilan': '/bilan.html', '/contact': '/contact.html', '/setup': '/setup.html' };
+  '/master': '/master.html', '/bilan': '/bilan.html', '/contact': '/contact.html', '/setup': '/setup.html', '/rapport': '/rapport.html' };
 // Sorties dédiées pour l'ordinateur du mur (Nolan) : /ecran suit la tablette, /ecran/<scène> reste figé sur une scène
 const ECRAN = /^\/ecran(\/[a-z-]+)?$/;
 
@@ -373,6 +419,7 @@ async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const p = url.pathname;
   const staff = isStaff(req, url);
+  let m;
 
   // Appairage : /?t=JETON pose le cookie. L'URL garde le jeton pour que l'icône « écran d'accueil »
   // d'iOS (stockage séparé de Safari) reste appairée à chaque lancement.
@@ -429,7 +476,7 @@ async function route(req, res) {
       };
       clients.add(c);
       if (wantsStaff) {
-        send(res, 'hello', { leads: db.leads, deleted: Object.keys(db.deleted), words: db.words, wall: db.wall, poll: pollPublic(), questions: db.questions, settings: db.settings, tarifs: db.tarifs, presence: presence(), serverTime: Date.now() });
+        send(res, 'hello', { leads: db.leads, deleted: Object.keys(db.deleted), words: db.words, wall: db.wall, poll: pollPublic(), questions: db.questions, settings: db.settings, tarifs: db.tarifs, presence: presence(), screens: screenList(), session: sessionMeta(), sessions: sessionList(), serverTime: Date.now() });
         broadcast('presence', presence(), { staffOnly: true });
       } else {
         send(res, 'wall', publicWall());
@@ -439,6 +486,17 @@ async function route(req, res) {
         if (wantsStaff) broadcast('presence', presence(), { staffOnly: true });
       });
       return;
+    }
+
+    // L'ordinateur du mur se signale toutes les 5 s : la tablette sait que l'écran est bien là, et sur quelle scène
+    if (p === '/api/screen/ping' && req.method === 'POST') {
+      const b = await readBody(req, 2048);
+      const id = String(b.id || '').replace(/[^\w-]/g, '').slice(0, 24);
+      if (!id) return json(res, 422, { error: 'id' });
+      const prev = screens.get(id);
+      screens.set(id, { id, scene: cleanText(b.scene, 16), locked: cleanText(b.locked, 16), w: Number(b.w) || 0, h: Number(b.h) || 0, fs: !!b.fs, since: prev?.since || Date.now(), at: Date.now() });
+      broadcast('screens', screenList(), { staffOnly: true });
+      return json(res, 200, { ok: true });
     }
 
     if (p === '/api/words' && req.method === 'POST') {
@@ -522,7 +580,50 @@ async function route(req, res) {
       return json(res, 200, { ok: true, token: config.token });
     }
 
-    if (p === '/api/state') return json(res, 200, { leads: db.leads, words: db.words, wall: db.wall, poll: pollPublic(), questions: db.questions, settings: db.settings, tarifs: db.tarifs, presence: presence() });
+    if (p === '/api/state') return json(res, 200, { leads: db.leads, words: db.words, wall: db.wall, poll: pollPublic(), questions: db.questions, settings: db.settings, tarifs: db.tarifs, presence: presence(), screens: screenList(), session: sessionMeta(), sessions: sessionList() });
+
+    /* --- Sessions : archiver la prestation en cours, repartir à zéro, relire un rapport --- */
+    if (p === '/api/session/new' && req.method === 'POST') {
+      const b = await readBody(req, 8192);
+      const st = sessionStats();
+      if (b.archive !== false && (st.sends || st.votes || st.questions)) {
+        db.sessions.unshift(sessionSnapshot());
+        db.sessions = db.sessions.slice(0, 60);
+      }
+      db.words = []; db.wordsBy = {}; db.poll = null; db.pollVotes = {}; db.questions = [];
+      const name = cleanText(b.name, 80), client = cleanText(b.client, 40);
+      db.session = { id: crypto.randomUUID().slice(0, 8), name: name || db.settings.eventName || 'Salon', client, startedAt: Date.now() };
+      if (name) db.settings.eventName = name;
+      if ('client' in b) db.wall.theme = cleanTheme({ ...db.wall.theme, client, logo: client && client !== db.wall.theme.client ? '' : db.wall.theme.logo });
+      if (b.question !== undefined) db.wall.question = cleanText(b.question, 160);
+      db.wall.updatedAt = Date.now();
+      save();
+      broadcastSessionReset();
+      return json(res, 200, { ok: true, session: sessionMeta(), sessions: sessionList() });
+    }
+    if (p === '/api/session' && req.method === 'PUT') {
+      const b = await readBody(req, 4096);
+      if ('name' in b) { db.session.name = cleanText(b.name, 80) || db.session.name; db.settings.eventName = db.session.name; }
+      if ('client' in b) { db.session.client = cleanText(b.client, 40); db.wall.theme = cleanTheme({ ...db.wall.theme, client: db.session.client }); db.wall.updatedAt = Date.now(); broadcast('wall', publicWall()); }
+      save();
+      broadcast('settings', db.settings, { staffOnly: true });
+      broadcast('session', sessionMeta(), { staffOnly: true });
+      return json(res, 200, { ok: true, session: sessionMeta() });
+    }
+    if (p === '/api/sessions' && req.method === 'GET') return json(res, 200, { session: sessionMeta(), sessions: sessionList() });
+    if (p === '/api/sessions/live' && req.method === 'GET') return json(res, 200, { ...sessionSnapshot(), live: true });
+    if ((m = /^\/api\/sessions\/([\w-]+)(\/export\.csv)?$/.exec(p))) {
+      const s = db.sessions.find((x) => x.id === m[1]);
+      if (!s) return json(res, 404, { error: 'session introuvable' });
+      if (req.method === 'DELETE') { db.sessions = db.sessions.filter((x) => x.id !== m[1]); save(); broadcast('sessions', sessionList(), { staffOnly: true }); return json(res, 200, { ok: true }); }
+      if (!m[2]) return json(res, 200, s);
+      const rows = [['Rubrique', 'Texte', 'Nombre', 'Détail'].map(csvCell).join(';')];
+      s.words.forEach((w) => rows.push(['Nuage · ' + (s.question || 'mot'), w.text, w.count, ''].map(csvCell).join(';')));
+      if (s.poll) s.poll.options.forEach((o) => rows.push(['Sondage · ' + s.poll.title, o.label, o.count, s.poll.total ? Math.round((o.count / s.poll.total) * 100) + ' %' : ''].map(csvCell).join(';')));
+      s.questions.forEach((q) => rows.push(['Question', q.text, q.votes, [q.answered ? 'répondue' : '', q.pinned ? 'mise en avant' : ''].filter(Boolean).join(', ')].map(csvCell).join(';')));
+      res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="mediacom-session-${(s.client || s.name || 'session').replace(/[^\w-]+/g, '-').toLowerCase()}-${new Date(s.endedAt).toISOString().slice(0, 10)}.csv"` });
+      return res.end('﻿' + rows.join('\r\n'));
+    }
 
     if (p.startsWith('/api/cards/')) {
       const id = path.basename(p);
@@ -540,7 +641,6 @@ async function route(req, res) {
       return json(res, 200, { ok: true, lead });
     }
 
-    let m;
     if ((m = /^\/api\/leads\/([\w-]+)$/.exec(p)) && req.method === 'DELETE') {
       db.leads = db.leads.filter((l) => l.id !== m[1]);
       db.deleted[m[1]] = Date.now();
@@ -592,10 +692,11 @@ async function route(req, res) {
 
     if (p === '/api/wall' && req.method === 'PUT') {
       const b = await readBody(req, 512 * 1024); // le logo client (image réduite) passe par ici
-      const allowed = ['scene', 'accept', 'message', 'question', 'photo', 'countdownTo', 'countdownFrom', 'maxPerPerson', 'reelSet', 'externalUrl', 'qaTitle', 'qaOpen', 'theme'];
+      const allowed = ['scene', 'accept', 'message', 'question', 'photo', 'countdownTo', 'countdownFrom', 'maxPerPerson', 'reelSet', 'externalUrl', 'qaTitle', 'qaOpen', 'theme', 'cloudLayout'];
       for (const k of allowed) {
         if (!(k in b)) continue;
         if (k === 'accept' || k === 'qaOpen') db.wall[k] = !!b[k];
+        else if (k === 'cloudLayout') db.wall[k] = b[k] === 'haut' ? 'haut' : 'centre';
         else if (k === 'countdownTo' || k === 'countdownFrom' || k === 'maxPerPerson') db.wall[k] = Math.max(0, Number(b[k]) || 0);
         else if (k === 'externalUrl') db.wall[k] = /^https?:\/\//i.test(String(b[k] || '')) ? String(b[k]).slice(0, 500) : '';
         else if (k === 'theme') db.wall.theme = cleanTheme({ ...db.wall.theme, ...(b.theme || {}) });
@@ -651,8 +752,13 @@ async function route(req, res) {
       const b = await readBody(req);
       for (const k of ['eventName', 'wifiSsid', 'wifiPass', 'publicUrl']) if (k in b) db.settings[k] = String(b[k]).slice(0, 120);
       if ('bookAll' in b) db.settings.bookAll = !!b.bookAll;
+      // Validation du Book (Éric) : références retirées ou réaffichées une par une
+      const ids = (v) => [...new Set([].concat(v || []).map((x) => String(x).replace(/[^\w-]/g, '').slice(0, 40)).filter(Boolean))].slice(0, 120);
+      if ('bookHide' in b) db.settings.bookHide = ids(b.bookHide);
+      if ('bookShow' in b) db.settings.bookShow = ids(b.bookShow);
       save();
       broadcast('settings', db.settings, { staffOnly: true });
+      if ('bookHide' in b || 'bookShow' in b || 'bookAll' in b) broadcast('wall', publicWall());
       return json(res, 200, { ok: true, settings: db.settings });
     }
 

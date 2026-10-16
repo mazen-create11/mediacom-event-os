@@ -93,7 +93,13 @@ export const PHOTOS = [
   { f: 'facade-bleue', u: 'lumiere', c: 'Mise en lumière en extérieur', w: 2160, h: 2880 },
   { f: 'concert-couchant', u: 'scene', c: 'Concert au coucher du soleil', w: 2160, h: 2880, sem: false },
 ];
-export const isSem = (p) => p.sem !== false;
+// Validation d'Éric (onglet Pass) : une référence peut être retirée ou réaffichée une par une, au-delà de `sem`
+const bookOver = { hide: new Set(), show: new Set() };
+export function setBookOverrides(b = {}) {
+  bookOver.hide = new Set(b.bookHide || b.hide || []);
+  bookOver.show = new Set(b.bookShow || b.show || []);
+}
+export const isSem = (p) => (bookOver.show.has(p.f) ? true : bookOver.hide.has(p.f) ? false : p.sem !== false);
 export const photo = (f, small = false) => `/assets/photos/${f}${small ? '-s' : ''}.jpg`;
 
 // Vidéos de prestations (muettes, en boucle) : remplies quand des vidéos réelles sont fournies

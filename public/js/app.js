@@ -1,5 +1,5 @@
 import { createHub } from './hub.js';
-import { OPERATORS, opById, initial } from './data.js';
+import { OPERATORS, opById, initial, setBookOverrides } from './data.js';
 import { icon, LOGO_M, esc, $, $$, toast, sheet, closeSheet, closeDrawer, drawerOpen, chime, unlockAudio } from './ui.js';
 import regie from './views/regie.js';
 import contacts from './views/contacts.js';
@@ -132,6 +132,7 @@ hub.on('presence', () => { renderCrew(); refreshAll('presence'); });
 
 /* ---------- Mise à jour des vues ---------- */
 function refreshAll(reason) {
+  setBookOverrides(hub.state.settings || {});
   for (const v of VIEWS) if (mounted.has(v.id)) v.update?.(reason);
   renderBadge();
   $('#tc-event').textContent = hub.state.settings?.eventName || 'Salon';
@@ -139,7 +140,7 @@ function refreshAll(reason) {
 hub.on('change', (reason) => { refreshAll(reason); if (['hello', 'words', 'wall', 'poll', 'questions', 'settings'].includes(reason)) feedPreviews(); });
 
 // Aperçus du mur (iframes) : nourris par l'app, sans flux réseau supplémentaire
-const wallData = () => ({ type: 'mc-wall', wall: hub.state.wall, words: hub.state.words.filter((w) => !w.hidden), poll: hub.state.poll, questions: (hub.state.questions || []).filter((q) => !q.hidden), eventName: hub.state.settings?.eventName });
+const wallData = () => ({ type: 'mc-wall', wall: hub.state.wall, words: hub.state.words.filter((w) => !w.hidden), poll: hub.state.poll, questions: (hub.state.questions || []).filter((q) => !q.hidden), eventName: hub.state.settings?.eventName, book: { hide: hub.state.settings?.bookHide || [], show: hub.state.settings?.bookShow || [] } });
 function feedPreviews(extra) {
   for (const f of document.querySelectorAll('iframe[src^="/mur"], iframe[src^="/ecran"]')) f.contentWindow?.postMessage({ ...wallData(), ...extra }, location.origin);
 }
