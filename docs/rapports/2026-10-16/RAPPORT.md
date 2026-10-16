@@ -41,3 +41,48 @@ Le VPS de Nolan (clé refusée) et le jeton Hostinger (401) n'ont pas bougé. Po
 - Éric : liste du Book (bouton « Copier la liste pour Éric »), droits des vidéos, triptyque d'Allauch.
 - Nolan : tester `/ecran` sur le PC du boîtier avec le lanceur, choisir le nom de domaine, décider nuage Médiacom ou son outil (scène Externe).
 - Mazen : tarif de la « session interactive administrée » (référence donnée par Nolan : 3 à 6 k€ chez les concurrents).
+
+---
+
+# Après-midi du 16/10 : navigation, étiquettes, MediaScène 3D
+
+## Demandes de Mazen et interprétation
+
+- « Revenir en arrière » = un bouton de retour dans l'app, pas un retour de version. Livré : flèche « page précédente » dans l'en-tête (`fc47d95`), puis, sur son « oui », restitution du défilement au retour (`0f98688`).
+- Étiquettes git posées pour pouvoir revenir à une version : `v2026-10-12`, `v2026-10-15`, `v2026-10-16`, `v2026-10-16b`. Retour = `git checkout <étiquette> -- public server.js functions` puis redéploiement.
+- Scène Externe expliquée : n'importe quelle adresse https en plein écran (outil de Nolan, vidéo, site) ; lien figé `/ecran/externe` ; vide tant que Nolan n'a pas donné son adresse.
+- « vasy, et ouvre » (après la proposition d'une vidéo du déploiement) : l'app a été ouverte sur la scène 3D ; la vidéo de 12 s pour le showreel est **commencée mais non livrée** (interrompue par « enregistre tout »), voir « Reste ».
+
+## Navigation retour (`fc47d95`, `0f98688`)
+
+- `public/index.html` : bouton `#back` dans `.top-title`. `app.js` : pile `trail`, `goBack()` (ferme tiroir ou feuille d'abord, sinon `history.back()`), `popstate`, `go(id, {instant, fromHistory})` avec `pushState` / `replaceState`, rail intercepté, Échap = retour quand rien n'est ouvert, `scrollPos` par vue restitué si `fromHistory`.
+- Tests `tools/tests/back.mjs` et `tools/tests/scroll.mjs` (hub de test :3200, `MC_TOKEN` en variable d'env) : rail, flèche, geste navigateur, suivant, tiroir, Échap, défilement 900 → 0 → 900. 0 erreur console.
+
+## MediaScène 3D refaite (`335d622`, agent Opus 5.5 effort max, 63 min)
+
+Seul `public/js/views/scene.js` est modifié. Sources : 7 PDF de `~/Desktop/prospection-podium-mobile/07-docs/`, note de calcul DEKRA de la 60 (copie texte hors git : `_archive/2026-10-16/note-de-calcul-mediascene-60-dekra.txt`), photos de l'app et de `_research/mediascene/` (aucune `-premium`), 5 pages de mediascene.eu via Firecrawl une à la fois.
+
+| Taille | Plateau, hauteur de plancher | Sous toit | Toit | Porteur |
+|---|---|---|---|---|
+| 60 | 9,08 × 6,58 m, plancher 1,05 m | 4,87 m depuis le plancher | 9,56 × 7,76 m | remorque alu 3,5 t, timon, 2 essieux, coffre blanc 11,02 × 2,50 × 4 m |
+| 3-en-1 80 / 100 / 120 | 12,30 × 6,86 / 8,11 / 9,36 m, plancher 1,45 m | 7,97 m compté depuis le sol | 7,94 m de profondeur, casquette, rallonge en 120 | semi-remorque noire 26 t, 2 essieux |
+| 160 | 13,50 × 10,50 m, plancher 1,20 m | 8 m depuis le plancher | 14 × 12 m, déport son 1,50 m | semi-remorque 3 essieux |
+
+- Déploiement 12 s en 6 phases, ordre hydraulique des fiches : calage (4 vérins), ailes de toit à 20°, planchers sur pieds, toit sur colonnes télescopiques à 3 éléments, poteaux / garde-corps / escalier / avancée / casquette, bâches / son / ponts lumière, lyres allumées à la fin. Rejouable.
+- Châssis galva sur la 60, noir sur les semi-remorques ; toit blanc dessus, noir dessous ; tubes alu (60), H30V noirs (3-en-1), tours tri (160) ; line arrays, garde-corps noirs, escalier alu, jupe.
+- Le réglage Lyres agit désormais sur la MediaScène. 110 à 141 appels de rendu, 50 à 61 k triangles, 60 images/s, mémoire stable après 12 reconstructions. Autres formats inchangés.
+- Captures : `docs/rapports/2026-10-16/3d/` (planche des 15 vues, 3 séquences de déploiement, planche portrait iPad, 3 vues public).
+- En ligne : `scene.js` de production = dépôt (même empreinte SHA-1).
+
+### À faire trancher par Nolan
+
+1. Les 7,97 m du 3-en-1 : comptés depuis le sol (choix retenu, plans EMS à 8,6 m hors-tout) ou depuis le plancher (toit à remonter de 1,45 m).
+2. Cinématique de la 160 : aucun document ; interprétation (ailes et planchers en 2 panneaux, toit avant les planchers), dite sous les cotes dans l'app. Régies latérales de 4 m non modélisées.
+3. Poteaux de la 60 : tubes alu (note de calcul, photo de nuit) ou treillis noir (photo des Gets).
+
+Contradictions relevées : fiche « Scène mobile 120 » à 14 × 8 m et 6,2 m sous charpente (EMS suivi, confirmé par le site) ; semi de la 160 entre 13,80 et 14,20 m ; plateau de la 60 donné à 9,08 × 6,58, 9 × 6,70 ou 9,25 × 6,59 (cotes de `data.js` gardées). Écartés : fiche 70 m² et doc ULMA Brio (scène fixe). Estimés faute de document : hauteur sur route, épaisseurs, sections de colonnes, longueur des ailes de son, position des ponts, nombre d'enceintes, pneus, largeur de toit du 3-en-1 (12,90 m), longueur de casquette.
+
+## Reste
+
+- **Vidéo du déploiement** (proposition acceptée par « vasy ») : rendu 12 s en 2:1 (1728 × 864 comme les vidéos existantes), capturé image par image depuis `scene.js` en pilotant `ms.t0` / `ms.dur`, encodé en H.264, ajouté à `VIDEOS` dans `data.js` (`sem: true`, poster) pour le showreel de l'écran. Non commencé dans le code.
+- Décisions en attente inchangées : domaine `salon.…` (CNAME), tarif de la session, liste du Book pour Éric, droits vidéos et triptyque d'Allauch, adresse de l'outil de Nolan, test iPad et boîtier LED.

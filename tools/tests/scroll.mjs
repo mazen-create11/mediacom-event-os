@@ -1,0 +1,18 @@
+import { chromium } from '/Users/chabanmazen/node_modules/playwright-core/index.mjs';
+const B = 'http://127.0.0.1:3200', T = process.env.MC_TOKEN;
+const exe = '/Users/chabanmazen/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell';
+const browser = await chromium.launch({ executablePath: exe });
+const errs = [];
+const p = await browser.newPage({ viewport: { width: 1180, height: 700 } });
+p.on('pageerror', (e) => errs.push(e.message)); p.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
+await p.goto(B + '/?t=' + T + '#mur', { waitUntil: 'load' });
+await p.evaluate(() => localStorage.setItem('mc_op', 'mazen')); await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(900);
+await p.evaluate(() => { document.querySelector('#stage').scrollTop = 900; }); await p.waitForTimeout(200);
+const s0 = await p.evaluate(() => document.querySelector('#stage').scrollTop);
+await p.click('a[data-view="book"]'); await p.waitForTimeout(500);
+const s1 = await p.evaluate(() => document.querySelector('#stage').scrollTop);
+await p.click('#back'); await p.waitForTimeout(500);
+const s2 = await p.evaluate(() => document.querySelector('#stage').scrollTop);
+console.log('Écran défilé à', s0, '| Book ouvert à', s1, '| retour Écran à', s2, '| hash', await p.evaluate(() => location.hash));
+console.log('ERREURS', errs.length ? errs : 'aucune');
+await browser.close();
