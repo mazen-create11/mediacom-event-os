@@ -1,4 +1,4 @@
-// Configurateur 3D : plateau, mur LED incurvé animé, truss, lyres et faisceaux, brume, salle.
+// Configurateur 3D : plateau, mur LED incurvé animé, truss, lyres et faisceaux, brume, salle ; MediaScène déployable (60 à 160 m²).
 import { icon, esc, $, $$, toast, download, reduced } from '../ui.js';
 import { MEDIASCENE } from '../data.js';
 
@@ -18,8 +18,34 @@ function msModel() {
   const size = conf.msSize;
   const m = MEDIASCENE.models.find((x) => x.sizes.includes(size));
   const [W, D] = m.deck[size];
-  return { size, W, D, clear: m.clearance, deckH: m.deckH, trailer: m.trailer, name: m.name, load: m.id === 'ms60' ? '1,6 t' : m.id === 'ms160' ? '6 t' : '10,1 t' };
+  return { id: m.id, geo: MS_GEO[m.id], size, W, D, clear: m.clearance, deckH: m.deckH, trailer: m.trailer, name: m.name, load: m.id === 'ms60' ? '1,6 t' : m.id === 'ms160' ? '6 t' : '10,1 t' };
 }
+// Géométrie 3D par modèle (m). Sources : fiches techniques Médiacom, note de calcul EMS STAGE 60 (DEKRA / Abaqsys,
+// 25/03/2026 : toit 9,56 × 7,76 m, plancher 9,25 × 6,59 m), doc EMS Stage 100 (plans : hors-tout 8,6 m), fiche SM 160.
+// under : 'plateau' = hauteur sous points moteurs comptée depuis le plancher, 'sol' = depuis le sol (plans EMS 3-en-1).
+// Ailes de toit et planchers : 1 panneau (60, 3-en-1) ou 2 panneaux articulés (160, pour tenir dans 4,10 m sur route).
+const MS_GEO = {
+  ms60: {
+    box: 2.5, roadH: 4, roadDeck: 0.85, roofW: 9.56, roofFront: 2.63, roofBack: 2.63, roofT: 0.24, floorT: 0.14, folds: 1, under: 'plateau',
+    trailer: 'timon', axles: [-0.42, 0.42], wheelR: 0.33, tyreW: 0.2, tow: 1.75, frame: 'alu', struct: 'alu', colW: 0.9, colT: 0.22,
+    post: 'tube', edge: 0.3, edgeTri: true, edgeMat: 'alu', son: 'tri', wingSon: 0.85, arrays: 6, ponts: [1.1, -1.5], pont: 0.3, drop: 0.55,
+    deck: 0x3a2a20, top: 0xe9edf2, floorSkin: 0xdfe4ea, brand: true,
+  },
+  ms120: {
+    box: 2.46, roadH: 4, roadDeck: 1.2, base: 6.86, roofW: 12.9, roofFront: 2.74, roofBack: 2.74, roofT: 0.26, floorT: 0.12, folds: 1, under: 'sol',
+    trailer: 'semi', axles: [-4.6, -3.25], wheelR: 0.54, tyreW: 0.38, frame: 'acier', struct: 'acier', colW: 1.3, colT: 0.3,
+    post: 'h30', postSize: 0.3, postIn: 0.2, edge: 0.34, edgeTri: true, edgeMat: 'alu', son: 'carre', wingSon: 1.3, arrays: 8,
+    cap: { 80: 1.25, 100: 1.25, 120: 2.5 }, ponts: [0.9, 3.7, -1.3], pont: 0.3, drop: 1.2,
+    deck: 0x18191c, top: 0xe9edf2, floorSkin: 0xdfe4ea, brand: true,
+  },
+  ms160: {
+    box: 2.55, roadH: 4.1, roadDeck: 1.12, roofW: 14, roofFront: 5.475, roofBack: 3.975, roofT: 0.42, floorT: 0.15, folds: 2, under: 'plateau',
+    trailer: 'semi', axles: [-5.3, -3.95, -2.6], wheelR: 0.48, tyreW: 0.38, frame: 'acier', struct: 'acier', colW: 2, colT: 0.25,
+    post: 'tri', postSize: 0.5, postIn: 0.4, edge: 0.42, edgeTri: false, edgeMat: 'acier', son: 'carre', wingSon: 1.1, arrays: 10,
+    ponts: [2.7, -4.8, -1.6], pont: 0.5, drop: 1.4, fascia: 0.75, order: ['calage', 'ailes', 'toit', 'planchers', 'poteaux', 'son'],
+    deck: 0x231d18, top: 0x41464f, floorSkin: 0x6b4a33, brand: false,
+  },
+};
 const LOGO_PATH = 'M0 0L128.6 134L256 0V110.4L130.6 241L0 110.1Z M0 152.4V242H80.3Z M256 152.5V242H175.9Z';
 
 function specs() {
@@ -146,7 +172,11 @@ function renderSpecs() {
     $('#s3-specs', el).innerHTML = [[`${fmt(m.W)} × ${fmt(m.D)} m`, 'Plateau'], [`${m.size} m²`, 'Surface'], [`${fmt(m.clear)} m`, 'Sous points moteurs'], [m.load, 'Charge en toiture']]
       .map(([v, l]) => `<div class="spec"><b style="font-size:17px">${v}</b><span>${l}</span></div>`).join('');
     $('#s3-hud', el).innerHTML = `<span class="tag blue">MediaScène</span><span class="tag">${esc(m.name)} · ${m.size} m²</span>`;
-    $('#s3-note', el).textContent = 'Cotes des fiches techniques. Déploiement simplifié pour la démonstration : vérins de calage, montée du toit, ailes, planchers.';
+    $('#s3-note', el).textContent = {
+      ms60: 'Cotes de la fiche 60 m² et de la note de calcul EMS. Ordre hydraulique de la fiche : calage, ailes de toit, planchers, montée du toit.',
+      ms120: 'Cotes de la fiche EMS Stage 3-en-1. Ordre hydraulique de la fiche : calage, ailes de toit, planchers, montée du toit.',
+      ms160: 'Cotes de la fiche SM 160. Ordre de déploiement à confirmer par la direction technique.',
+    }[m.id];
     return;
   }
   $('#s3-note', el).textContent = 'Cabinets de 500 × 500 mm. Consommation à confirmer par la direction technique.';
@@ -263,152 +293,506 @@ async function build() {
     group.add(haze);
   }
 
-  /* ---------- MediaScène : remorque, toit sur vérins, ailes et planchers dépliables ---------- */
-  const ms = { p: 1, from: 1, to: 1, t0: 0, dur: 9000, parts: null };
+  /* ---------- MediaScène : remorque, vérins de calage, ailes de toit et planchers dépliants, colonnes télescopiques ---------- */
+  const ms = { p: 1, from: 1, to: 1, t0: 0, dur: 12000, parts: null, pl: 1 };
   const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2);
   const clamp01 = (k) => Math.max(0, Math.min(1, k));
-  const STEPS = [[0, 0.12, 'Calage sur vérins'], [0.1, 0.42, 'Montée du toit'], [0.4, 0.66, 'Ouverture des ailes'], [0.62, 0.84, 'Dépliage des planchers'], [0.82, 1, 'Son et lumière']];
+  const lerp = (a, b, k) => a + (b - a) * k;
+  // Six phases ; ordre hydraulique des fiches EMS : calage (4 vérins), ailes de toit (4), planchers (4), toit (2 vérins colonnes)
+  const WIN = [[0, 0.13], [0.13, 0.3], [0.3, 0.48], [0.48, 0.68], [0.68, 0.85], [0.85, 1]];
+  const ORDER = ['calage', 'ailes', 'planchers', 'toit', 'poteaux', 'son'];
+  const PHASE = { calage: 'Calage sur 4 vérins', ailes: 'Ouverture des ailes de toit', planchers: 'Dépliage des planchers', toit: 'Montée du toit sur les colonnes', poteaux: 'Poteaux, garde-corps, escalier', son: 'Bâches, son et lumière' };
 
-  // Habillage de la remorque : MEDIASCÈNE sur les flancs, lisible quand la scène est repliée
+  // Pièces fusionnées : un appel de rendu par sous-ensemble, pour tenir sur iPad
+  const _m4 = new T.Matrix4(), _q = new T.Quaternion(), _e = new T.Euler(), _one = new T.Vector3(1, 1, 1), _p = new T.Vector3(), _u = new T.Vector3(), _Y = new T.Vector3(0, 1, 0);
+  function merge(list) {
+    let nv = 0, ni = 0;
+    for (const g of list) { nv += g.attributes.position.count; ni += g.index.count; }
+    const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), idx = new Uint32Array(ni);
+    let ov = 0, oi = 0;
+    for (const g of list) {
+      pos.set(g.attributes.position.array, ov * 3);
+      nor.set(g.attributes.normal.array, ov * 3);
+      uv.set(g.attributes.uv.array, ov * 2);
+      const a = g.index.array;
+      for (let i = 0; i < a.length; i++) idx[oi + i] = a[i] + ov;
+      ov += g.attributes.position.count;
+      oi += a.length;
+      g.dispose();
+    }
+    const out = new T.BufferGeometry();
+    out.setAttribute('position', new T.BufferAttribute(pos, 3));
+    out.setAttribute('normal', new T.BufferAttribute(nor, 3));
+    out.setAttribute('uv', new T.BufferAttribute(uv, 2));
+    out.setIndex(new T.BufferAttribute(idx, 1));
+    return out;
+  }
+  function kit() {
+    const list = [];
+    const put = (g, x, y, z, rx, ry, rz) => { g.applyMatrix4(_m4.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz)), _one)); list.push(g); };
+    const k = {
+      box(w, h, d, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) { put(new T.BoxGeometry(w, h, d), x, y, z, rx, ry, rz); return k; },
+      cyl(r, h, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, seg = 10) { put(new T.CylinderGeometry(r, r, h, seg), x, y, z, rx, ry, rz); return k; },
+      // Barre de section carrée entre deux points
+      bar(a, b, t = 0.04) {
+        _u.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+        const len = _u.length();
+        if (len < 1e-4) return k;
+        const g = new T.BoxGeometry(t, len, t);
+        g.applyMatrix4(_m4.compose(_p.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), _q.setFromUnitVectors(_Y, _u.normalize()), _one));
+        list.push(g);
+        return k;
+      },
+      mesh(material) { return new T.Mesh(merge(list), material); },
+    };
+    return k;
+  }
+  // Poutre treillis entre deux points : section carrée ou rectangulaire [a, b], ou triangulée
+  function lattice(k, a, b, size, tri = false, chord = 0.05, diag = 0.028) {
+    const A = new T.Vector3(...a), u = new T.Vector3(...b).sub(A);
+    const len = u.length();
+    u.normalize();
+    const w1 = new T.Vector3().crossVectors(u, Math.abs(u.y) > 0.9 ? new T.Vector3(1, 0, 0) : _Y).normalize();
+    const w2 = new T.Vector3().crossVectors(w1, u).normalize();
+    const [s1, s2] = Array.isArray(size) ? size : [size, size];
+    const offs = (tri ? [[0, 0.58], [-0.5, -0.29], [0.5, -0.29]] : [[0.5, 0.5], [-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5]])
+      .map(([i, j]) => w1.clone().multiplyScalar(i * s1).addScaledVector(w2, j * s2));
+    const n = Math.max(1, Math.round(len / (Math.max(s1, s2) * 1.25)));
+    const at = (i, o) => A.clone().addScaledVector(u, (len * i) / n).add(o).toArray();
+    for (const o of offs) k.bar(at(0, o), at(n, o), chord);
+    for (let f = 0; f < offs.length; f++) {
+      const o1 = offs[f], o2 = offs[(f + 1) % offs.length];
+      for (let i = 0; i < n; i++) k.bar(at(i, i % 2 ? o1 : o2), at(i + 1, i % 2 ? o2 : o1), diag);
+    }
+    return k;
+  }
+  // Garde-corps barreaudé (arrêté du 25/07/2022), 1,10 m, posé au niveau du plancher
+  function guard(k, a, b, h = 1.1) {
+    const dx = b[0] - a[0], dz = b[2] - a[2], len = Math.hypot(dx, dz);
+    const at = (t, y) => [a[0] + dx * t, a[1] + y, a[2] + dz * t];
+    k.bar(at(0, h), at(1, h), 0.05).bar(at(0, 0.1), at(1, 0.1), 0.04);
+    const posts = Math.max(1, Math.round(len / 2));
+    for (let i = 0; i <= posts; i++) k.bar(at(i / posts, 0), at(i / posts, h), 0.05);
+    const bars = Math.round(len / 0.14);
+    for (let i = 1; i < bars; i++) k.bar(at(i / bars, 0.1), at(i / bars, h), 0.022);
+    return k;
+  }
+  // Ligne de diffusion suspendue, courbure en J vers le public
+  function lineArray(n, mat) {
+    const k = kit();
+    k.box(0.84, 0.07, 0.62, 0, -0.035, 0);
+    let y = -0.07, z = 0, ang = 0;
+    for (let i = 0; i < n; i++) {
+      ang += i < n * 0.55 ? 0.01 : 0.055;
+      k.box(0.78, 0.26, 0.5, 0, y - 0.13 * Math.cos(ang), z + 0.13 * Math.sin(ang), ang);
+      y -= 0.265 * Math.cos(ang);
+      z += 0.265 * Math.sin(ang);
+    }
+    return k.mesh(mat);
+  }
+
+  // Habillage de l'aile de toit avant : flanc de la remorque fermée, dessus du toit une fois déployé
   const brandTex = {};
-  function brand(flip) {
-    if (brandTex[flip]) return brandTex[flip];
-    const c = document.createElement('canvas'); c.width = 2048; c.height = 512;
-    const g = c.getContext('2d');
-    g.fillStyle = '#eef1f6'; g.fillRect(0, 0, 2048, 512);
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillStyle = '#0b1830'; g.font = '600 200px Jost, sans-serif'; g.letterSpacing = '28px'; g.fillText('MEDIASCÈNE', 1024, 220);
-    g.fillStyle = '#1670e4'; g.font = '500 58px "JB Mono", monospace'; g.letterSpacing = '16px'; g.fillText('LA SCÈNE MOBILE · MÉDIACOM', 1024, 395);
+  function brand(aspect) {
+    const key = aspect.toFixed(2);
+    if (brandTex[key]) return brandTex[key];
+    const c = document.createElement('canvas');
+    c.width = 2048;
+    c.height = Math.round(2048 / aspect);
+    const draw = () => {
+      const g = c.getContext('2d'), w = c.width, h = c.height;
+      g.fillStyle = '#eceff4'; g.fillRect(0, 0, w, h);
+      // Marquage de gabarit orange aux angles, comme sur la remorque
+      const m = h * 0.07, a = h * 0.2, e = h * 0.035;
+      g.fillStyle = '#f08a1c';
+      for (const [x, y, sx, sy] of [[m, m, 1, 1], [w - m, m, -1, 1], [m, h - m, 1, -1], [w - m, h - m, -1, -1]]) {
+        g.fillRect(sx > 0 ? x : x - a, sy > 0 ? y : y - e, a, e);
+        g.fillRect(sx > 0 ? x : x - e, sy > 0 ? y : y - a, e, a);
+      }
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#0b1830'; g.font = `600 ${Math.round(h * 0.3)}px Jost, sans-serif`; g.letterSpacing = `${Math.round(h * 0.045)}px`;
+      g.fillText('MEDIASCÈNE', w / 2, h * 0.44);
+      g.fillStyle = '#3192ff'; g.fillRect(w / 2 - h * 0.5, h * 0.64, h, h * 0.014);
+      g.fillStyle = '#1670e4'; g.font = `500 ${Math.round(h * 0.07)}px "JB Mono", monospace`; g.letterSpacing = `${Math.round(h * 0.025)}px`;
+      g.fillText('SCÈNE MOBILE HYDRAULIQUE · MÉDIACOM', w / 2, h * 0.76);
+    };
+    draw();
     const t = new T.CanvasTexture(c);
     t.colorSpace = T.SRGBColorSpace;
     t.anisotropy = 4;
-    t.center.set(0.5, 0.5);
-    t.rotation = flip ? Math.PI : 0;
-    brandTex[flip] = t;
+    document.fonts?.ready?.then(() => { draw(); t.needsUpdate = true; });
+    brandTex[key] = t;
     return t;
   }
 
   function buildMS() {
-    const m = msModel();
-    const W = m.W, half = 1.25, wing = (m.D - 2 * half) / 2;
-    const roofOpen = m.deckH + m.clear + 0.2, roofClosed = m.deckH + wing + 0.45;
-    const zc = -2; // centre du plateau
-    const deckMat = new T.MeshStandardMaterial({ color: 0x5a4130, roughness: 0.8 }); // plancher marron foncé (fiche 60 m²)
-    const roofMat = new T.MeshStandardMaterial({ color: 0x2c3442, roughness: 0.5, metalness: 0.45 });
-    const skinMat = new T.MeshStandardMaterial({ color: 0xe9edf3, roughness: 0.45, metalness: 0.25 });
-    const alu = new T.MeshStandardMaterial({ color: 0xaab3c0, roughness: 0.35, metalness: 0.85 }); // châssis aluminium
+    const m = msModel(), G = m.geo;
+    const W = m.W, D = m.D, half = G.box / 2, rW = G.roofW;
+    const D0 = G.base || D, av = D - D0; // plateau porté par la remorque, puis avancée de scène (100 et 120 m²)
+    const lift = m.deckH - G.roadDeck; // course des vérins de calage
+    const under = G.under === 'sol' ? m.clear : m.deckH + m.clear; // sous-face du toit (points moteurs), depuis le sol
+    const rT = G.roofT, fT = G.floorT, n = G.folds, panelT = 0.07;
+    const hinge = half - n * (rT + fT + 0.03) - 0.02; // planchers repliés à l'intérieur des ailes de toit
+    const floorL = D0 / 2 - hinge;
+    const hR = n > 1 ? half - rT - 0.02 : half; // charnière des ailes de toit ; sur la 160 le 2e panneau se replie par-dessus
+    const wingB = half + G.roofBack - hR, wingF = half + G.roofFront - hR;
+    const roadUnder = Math.max(G.roadH - rT, G.roadDeck + floorL / n + 0.06); // sous-face du toit, remorque fermée
+    const workUnder = under - lift; // même cote dans le repère de la remorque calée
+    const zc = -2.5;
+    const mat = (color, o) => new T.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.2, ...o });
+    const M = {
+      alu: mat(0xb9c2ce, { roughness: 0.32, metalness: 0.85 }),
+      galva: mat(0x8e98a4, { roughness: 0.45, metalness: 0.7 }),
+      steel: mat(0x262b34, { roughness: 0.42, metalness: 0.6 }),
+      tarp: mat(0x0d1016, { roughness: 0.95, metalness: 0 }),
+      deck: mat(G.deck, { roughness: 0.85, metalness: 0.05 }),
+      skin: mat(G.top, { roughness: 0.45, metalness: 0.1 }),
+      under: mat(0x101318, { roughness: 0.8, metalness: 0.2 }),
+      edge: mat(0x59626e, { roughness: 0.5, metalness: 0.5 }),
+      tyre: mat(0x0f1012, { roughness: 0.92, metalness: 0 }),
+      red: mat(0xd31f2a, { emissive: 0x8a0a10, emissiveIntensity: 0.7 }),
+      chrome: mat(0xe2e8ef, { roughness: 0.15, metalness: 1 }),
+      spk: mat(0x23272e, { roughness: 0.5, metalness: 0.35 }),
+      floorSkin: mat(G.floorSkin, { roughness: 0.5, metalness: 0.1 }),
+    };
+    const frame = G.frame === 'alu' ? M.galva : M.steel; // châssis alu (60) ou acier noir RAL 9005 (semi-remorques)
+    const struct = G.struct === 'alu' ? M.alu : M.steel;
     // Lumière de fin de journée : la structure se lit même repliée
-    const sky = new T.HemisphereLight(0x8aa4cf, 0x1a1f2a, 1.35); group.add(sky);
-    const sun = new T.DirectionalLight(0xffe2c0, 1.1); sun.position.set(-14, 18, 16); group.add(sun);
-    const wash = new T.SpotLight(0xcfe3ff, 0, 40, 0.5, 0.7, 1.2); wash.position.set(0, 9, 14); group.add(wash);
-    wash.target.position.set(0, m.deckH, -2); group.add(wash.target);
-    const boxM = (w, h, d, mat) => new T.Mesh(new T.BoxGeometry(w, h, d), mat);
-    const root = new T.Group(); root.position.z = zc; group.add(root);
-    const P = { jacks: [], feet: [], columns: [] };
+    const sky = new T.HemisphereLight(0x8aa4cf, 0x1a1f2a, 1.3); group.add(sky);
+    const sun = new T.DirectionalLight(0xffe2c0, 1.15); sun.position.set(-14, 18, 16); group.add(sun);
+    const wash = new T.SpotLight(0xcfe3ff, 0, 60, 0.55, 0.7, 1.2); wash.position.set(0, under + 1.5, zc + 18); group.add(wash);
+    wash.target.position.set(0, m.deckH + 1, zc); group.add(wash.target);
+    const add = (parent, o, x = 0, y = 0, z = 0) => { o.position.set(x, y, z); parent.add(o); return o; };
+    const hide = (o) => { o.visible = false; return o; };
+    const root = add(group, new T.Group(), 0, 0, zc);
+    const rig = add(root, new T.Group()); // tout ce que soulèvent les vérins de calage
+    const P = { rig };
 
-    // Remorque : châssis, roues, timon
-    const chassis = boxM(m.trailer, 0.32, 2.3, alu); chassis.position.y = m.deckH - 0.24; root.add(chassis);
-    const tow = boxM(1.6, 0.12, 0.16, alu); tow.position.set(m.trailer / 2 + 0.7, m.deckH - 0.3, 0); root.add(tow);
-    for (const x of [-0.75, 0.75]) for (const z of [-1.02, 1.02]) {
-      const wh = new T.Mesh(new T.CylinderGeometry(0.42, 0.42, 0.3, 24), black); wh.rotation.x = Math.PI / 2; wh.position.set(x, 0.42, z); root.add(wh);
+    // ----- Remorque : châssis, essieux, timon (60) ou pivot d'attelage (semi-remorques)
+    const cTop = G.roadDeck - fT, cH = G.frame === 'alu' ? 0.16 : 0.34, cBot = cTop - cH;
+    const Lc = W + 0.2, wR = G.wheelR, wz = half - 0.34;
+    const ch = kit();
+    for (const z of [-0.55, 0.55]) ch.box(Lc, cH, 0.12, 0, cTop - cH / 2, z); // longerons
+    for (const z of [-half + 0.05, half - 0.05]) ch.box(Lc, 0.1, 0.08, 0, cTop - 0.05, z); // rives
+    for (let x = -Lc / 2 + 0.2; x <= Lc / 2; x += 1.25) ch.box(0.08, 0.1, G.box - 0.1, x, cTop - 0.06, 0); // traverses
+    const ax0 = Math.min(...G.axles), ax1 = Math.max(...G.axles);
+    if (G.trailer === 'timon') {
+      // Timon ALCO à hauteur variable, tête d'attelage, roue jockey
+      const xe = Lc / 2, xt = xe + G.tow, y = cTop - cH / 2;
+      ch.bar([xe, y, -0.66], [xt - 0.4, y - 0.05, 0], 0.09).bar([xe, y, 0.66], [xt - 0.4, y - 0.05, 0], 0.09);
+      ch.box(0.55, 0.12, 0.14, xt - 0.2, y - 0.06, 0);
+      ch.cyl(0.04, y - 0.14, xt - 0.8, (y - 0.14) / 2 + 0.14, 0.12);
+      ch.cyl(0.1, 0.08, xt - 0.8, 0.1, 0.12, Math.PI / 2);
+    } else {
+      // Plaque et pivot d'attelage à l'avant, barre anti-encastrement à l'arrière
+      ch.box(1.2, 0.1, G.box - 0.3, Lc / 2 - 0.75, cBot - 0.05, 0);
+      ch.cyl(0.05, 0.14, Lc / 2 - 0.9, cBot - 0.17, 0);
+      ch.box(0.12, 0.16, G.box - 0.2, -Lc / 2 - 0.1, 0.55, 0);
+      for (const z of [-0.9, 0.9]) ch.bar([-Lc / 2 + 0.2, cBot, z], [-Lc / 2 - 0.1, 0.62, z], 0.08);
     }
-    // Vérins de calage (origine en haut, s'allongent vers le sol)
-    for (const x of [-m.trailer / 2 + 0.5, m.trailer / 2 - 0.5]) for (const z of [-1.05, 1.05]) {
-      const geo = new T.CylinderGeometry(0.07, 0.07, 1, 10); geo.translate(0, -0.5, 0);
-      const j = new T.Mesh(geo, metal); j.position.set(x, m.deckH - 0.4, z); root.add(j); P.jacks.push(j);
+    rig.add(ch.mesh(frame));
+    const lamps = kit();
+    for (const z of [-half + 0.3, half - 0.3]) lamps.box(0.06, 0.14, 0.32, -Lc / 2 - 0.04, cTop - 0.12, z);
+    rig.add(lamps.mesh(M.red));
+    // Roues : restent au sol quand les vérins soulèvent le châssis (câbles de maintien des essieux)
+    const wk = kit(), rk = kit();
+    for (const x of G.axles) {
+      wk.cyl(0.06, 2 * wz, x, wR, 0, Math.PI / 2, 0, 0, 8);
+      for (const z of [-wz, wz]) { wk.cyl(wR, G.tyreW, x, wR, z, Math.PI / 2, 0, 0, 22); rk.cyl(wR * 0.6, G.tyreW + 0.02, x, wR, z, Math.PI / 2, 0, 0, 16); }
     }
-    // Plancher central et planchers dépliables
-    const deck = boxM(W, 0.12, 2 * half, deckMat); deck.position.y = m.deckH; root.add(deck);
+    for (const z of [-wz, wz]) rk.box(ax1 - ax0 + 2 * wR + 0.3, 0.04, G.tyreW + 0.16, (ax0 + ax1) / 2, 2 * wR + 0.06, z); // garde-boue
+    root.add(wk.mesh(M.tyre), rk.mesh(M.galva));
+    // Vérins de calage aux 4 coins (+ béquilles avant des semi-remorques) : corps fixe, tige jusqu'au sol
+    const jx = W / 2 - 0.4, jz = half - 0.2;
+    const jacks = [[-jx, -jz], [-jx, jz], [jx, -jz], [jx, jz]];
+    if (G.trailer !== 'timon') jacks.push([W / 2 - 2, -0.75], [W / 2 - 2, 0.75]);
+    const jb = kit(), jr = kit(), jp = kit();
+    for (const [x, z] of jacks) { jb.cyl(0.085, 0.42, x, cBot - 0.1, z); jr.cyl(0.05, 1, x, -0.5, z, 0, 0, 0, 8); jp.box(0.34, 0.04, 0.34, x, 0.02, z); }
+    rig.add(jb.mesh(M.steel));
+    P.rodTop = cBot - 0.3;
+    P.rods = add(rig, jr.mesh(M.chrome), 0, P.rodTop, 0);
+    P.pads = add(rig, jp.mesh(M.galva));
+
+    // ----- Plancher central et planchers dépliants, pieds réglables sous le bord extérieur
+    const deckMats = (bottom) => [M.edge, M.edge, M.deck, bottom, M.edge, M.edge];
+    add(rig, new T.Mesh(new T.BoxGeometry(W, fT, 2 * hinge), deckMats(M.under)), 0, G.roadDeck - fT / 2, 0);
     const floorWing = (side) => {
-      const piv = new T.Group(); piv.position.set(0, m.deckH, side * half);
-      const panel = boxM(W, 0.12, wing, deckMat); panel.position.z = side * wing / 2; piv.add(panel);
-      // Pieds de reprise au sol sous le bord extérieur
-      for (const x of [-W / 2 + 0.3, 0, W / 2 - 0.3]) {
-        const geo = new T.BoxGeometry(0.08, 1, 0.08); geo.translate(0, -0.5, 0);
-        const f = new T.Mesh(geo, metal); f.position.set(x, 0, side * (wing - 0.15)); piv.add(f); P.feet.push(f);
+      const l = floorL / n, secs = [];
+      let host = rig;
+      for (let i = 0; i < n; i++) {
+        const piv = add(host, new T.Group(), 0, i ? 0 : G.roadDeck, side * (i ? l : hinge));
+        add(piv, new T.Mesh(new T.BoxGeometry(W, fT, l), deckMats(M.floorSkin)), 0, -fT / 2, (side * l) / 2);
+        const lg = kit(), cnt = Math.max(3, Math.round(W / 2.3));
+        for (let j = 0; j <= cnt; j++) {
+          const x = -W / 2 + 0.25 + (j * (W - 0.5)) / cnt;
+          lg.cyl(0.035, 1, x, -0.5, 0, 0, 0, 0, 8).box(0.2, 0.025, 0.2, x, -0.99, 0);
+        }
+        secs.push({ piv, side, legs: hide(add(piv, lg.mesh(M.galva), 0, -fT, side * (l - 0.14))) });
+        host = piv;
       }
-      root.add(piv); return piv;
+      return secs;
     };
-    P.floorF = floorWing(1); P.floorB = floorWing(-1);
-    // Garde-corps arrière (norme 2022 sur la fiche) : simple lisse
-    // Toit : partie centrale, ailes articulées, colonnes télescopiques
-    const roof = new T.Group(); root.add(roof); P.roof = roof;
-    const rc = boxM(W + 0.4, 0.22, 2 * half, roofMat); roof.add(rc);
-    const rcTop = boxM(W + 0.4, 0.02, 2 * half, skinMat); rcTop.position.y = 0.12; roof.add(rcTop);
+    P.floors = [floorWing(1), floorWing(-1)];
+
+    // ----- Toit : module central, ailes articulées (panneaux fibre, sous-face noire), poutres de rive
+    const roof = add(rig, new T.Group(), 0, roadUnder, 0);
+    P.roof = roof;
+    const roofMats = (top) => [M.edge, M.edge, top, M.under, M.edge, M.edge];
+    add(roof, new T.Mesh(new T.BoxGeometry(rW, panelT, 2 * hR), roofMats(M.skin)), 0, rT - panelT / 2, 0);
+    const rc = kit();
+    for (const z of [-hR + 0.2, hR - 0.2]) lattice(rc, [-rW / 2, (rT - panelT) / 2, z], [rW / 2, (rT - panelT) / 2, z], [0.16, rT - panelT], false, 0.05, 0.026);
+    roof.add(rc.mesh(struct));
     const roofWing = (side) => {
-      const piv = new T.Group(); piv.position.set(0, 0, side * (half + 0.12));
-      const len = wing + 0.5;
-      const panel = boxM(W + 0.4, 0.16, len, roofMat); panel.position.z = side * len / 2; piv.add(panel);
-      const top = boxM(W + 0.4, 0.02, len, new T.MeshStandardMaterial({ map: brand(side < 0), roughness: 0.45, metalness: 0.15 })); top.position.set(0, 0.09, side * len / 2); piv.add(top);
-      roof.add(piv); return { piv, len };
+      const l = (side > 0 ? wingF : wingB) / n, secs = [];
+      let host = roof;
+      for (let i = 0; i < n; i++) {
+        const piv = add(host, new T.Group(), 0, i ? 0 : rT, side * (i ? l : hR));
+        const top = G.brand && side > 0 && !i ? new T.MeshStandardMaterial({ map: brand(rW / l), roughness: 0.45, metalness: 0.1 }) : M.skin;
+        add(piv, new T.Mesh(new T.BoxGeometry(rW, panelT, l), roofMats(top)), 0, -panelT / 2, (side * l) / 2);
+        // Ossature : longerons dans la largeur, traverses dans la profondeur
+        const k = kit(), beams = Math.max(1, Math.round(l / 1.4));
+        for (let j = 1; j < beams; j++) k.box(rW, rT - panelT, 0.07, 0, -(rT + panelT) / 2, (side * j * l) / beams);
+        for (let x = -rW / 2 + 0.1; x <= rW / 2; x += 1.55) k.box(0.06, (rT - panelT) * 0.7, l - 0.1, x, -panelT - (rT - panelT) * 0.35, (side * l) / 2);
+        piv.add(k.mesh(struct));
+        if (i === n - 1) { // poutre de rive (face et lointain)
+          const e = kit(), zz = side * (l - G.edge * 0.4);
+          lattice(e, [-rW / 2, -G.edge / 2, zz], [rW / 2, -G.edge / 2, zz], G.edgeTri ? G.edge : [G.edge * 0.8, G.edge], G.edgeTri, 0.05, 0.028);
+          piv.add(e.mesh(G.edgeMat === 'alu' ? M.alu : M.steel));
+        }
+        secs.push({ piv, side });
+        host = piv;
+      }
+      return secs;
     };
-    P.roofF = roofWing(1); P.roofB = roofWing(-1);
-    for (const x of [-W / 2 + 0.25, W / 2 - 0.25]) {
-      const geo = new T.BoxGeometry(0.34, 1, 0.34); geo.translate(0, 0.5, 0);
-      const c = new T.Mesh(geo, metal); c.position.set(x, m.deckH, 0); root.add(c); P.columns.push(c);
+    P.wings = [roofWing(1), roofWing(-1)];
+    const front = P.wings[0][n - 1].piv, lF = wingF / n; // dernier panneau de l'aile de face
+
+    // ----- Colonnes télescopiques en bout de remorque (2 vérins colonnes), 3 éléments emboîtés
+    const colX = W / 2 + G.colT / 2 + 0.03, H0 = roadUnder - cBot;
+    P.cols = [0, 1, 2].map((i) => {
+      const k = kit(), shrink = i * 0.07;
+      for (const s of [-1, 1]) lattice(k, [s * colX, cBot + 0.04 + i * 0.03, 0], [s * colX, roadUnder - 0.02 - i * 0.03, 0], [G.colW - 2 * shrink, G.colT - shrink], false, 0.07 - i * 0.01, 0.04);
+      return add(rig, k.mesh(struct));
+    });
+    const cyl = kit(), rod = kit();
+    for (const s of [-1, 1]) { cyl.cyl(0.11, H0 - 0.4, s * colX, cBot + H0 / 2, 0, 0, 0, 0, 12); rod.cyl(0.07, 1, s * colX, 0.5, 0, 0, 0, 0, 12); }
+    rig.add(cyl.mesh(M.steel));
+    P.rodY = roadUnder - 0.2;
+    P.colRod = add(rig, rod.mesh(M.galva), 0, P.rodY, 0);
+
+    // ----- Bâches de route aux extrémités du coffre, roulées à l'ouverture
+    const endX = W / 2 + G.colT + 0.07, endK = kit();
+    for (const s of [-1, 1]) endK.box(0.03, 1, G.box - 0.04, s * endX, -0.5, 0);
+    P.ends = add(roof, endK.mesh(M.tarp));
+    P.endLen = roadUnder - G.roadDeck + 0.1;
+
+    // ----- Poteaux de coin : tubes alu inclinés (60), H30V noirs (3-en-1), tours 500 tri (160)
+    P.posts = [];
+    const pIn = G.post === 'tube' ? 0.06 : G.postIn, zPost = D0 / 2 - pIn;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const bot = new T.Vector3(sx * (W / 2 - pIn), m.deckH, sz * zPost);
+      const top = G.post === 'tube' ? new T.Vector3(sx * (rW / 2 - 0.1), under, sz > 0 ? hR + wingF - 0.12 : -(hR + wingB - 0.12)) : new T.Vector3(bot.x, under, bot.z);
+      const len = top.distanceTo(bot), k = kit();
+      if (G.post === 'tube') k.cyl(0.055, len, 0, -len / 2, 0, 0, 0, 0, 10);
+      else lattice(k, [0, 0, 0], [0, -len, 0], G.postSize, G.post === 'tri', 0.06, 0.035);
+      const mesh = hide(add(root, k.mesh(G.post === 'h30' ? M.steel : M.alu), top.x, top.y, top.z));
+      mesh.quaternion.setFromUnitVectors(new T.Vector3(0, -1, 0), bot.sub(top).normalize());
+      P.posts.push(mesh);
     }
-    // Fond de scène (bâche) et lignes de son accrochées sous l'aile avant
-    const backGeo = new T.PlaneGeometry(W, 1); backGeo.translate(0, -0.5, 0);
-    P.back = new T.Mesh(backGeo, new T.MeshStandardMaterial({ color: 0x07090d, roughness: 1, side: T.DoubleSide }));
-    P.back.position.set(0, roofOpen - 0.1, -half - wing + 0.05); root.add(P.back);
-    P.arrays = [];
-    for (const x of [-W / 2 + 0.55, W / 2 - 0.55]) {
-      const arr = new T.Group(); arr.position.set(x, roofOpen - 0.2, half + wing - 0.2);
-      for (let k = 0; k < 6; k++) { const b = boxM(0.6, 0.3, 0.42, black); b.position.y = -0.2 - k * 0.32; b.rotation.x = k * 0.03; arr.add(b); }
-      root.add(arr); P.arrays.push(arr);
+
+    // ----- Garde-corps noirs sur 3 côtés, escalier alu à jardin
+    const zBack = -D0 / 2 + 0.04, zFront = D0 / 2 + av - 0.04, gx = W / 2 - 0.04, stZ = zBack + 1.25, sw = 0.9;
+    const gl = guard(kit(), [-gx, 0, zBack], [-gx, 0, stZ - sw / 2 - 0.1]);
+    guard(gl, [-gx, 0, stZ + sw / 2 + 0.1], [-gx, 0, zFront]);
+    P.rails = [guard(kit(), [-gx, 0, zBack], [gx, 0, zBack]), guard(kit(), [gx, 0, zBack], [gx, 0, zFront]), gl].map((k) => hide(add(root, k.mesh(M.steel), 0, m.deckH, 0)));
+    const h = m.deckH, nSt = Math.max(4, Math.round(h / 0.19)), run = 0.27, runL = nSt * run, st = kit();
+    for (const z of [-sw / 2, sw / 2]) {
+      st.bar([0, -0.06, z], [-runL, -h, z], 0.07).bar([0.05, 0.95, z], [-runL, -h + 0.95, z], 0.045);
+      st.bar([-runL, -h, z], [-runL, -h + 0.95, z], 0.045).bar([0.05, 0, z], [0.05, 0.95, z], 0.045);
     }
-    // Lyres sur l'avant du toit (allumées en fin de déploiement)
-    const n = Math.max(4, Math.round(W / 2));
-    for (let i = 0; i < n; i++) addLyre(-W / 2 + 0.9 + (i * (W - 1.8)) / (n - 1), roofOpen - 0.45, zc + half + wing - 0.6, i);
-    // Public debout
-    const audience = new T.MeshStandardMaterial({ color: 0x0d121d, roughness: 0.9 });
+    for (let i = 1; i < nSt; i++) st.box(run - 0.03, 0.04, sw, -(i - 0.5) * run, -(i * h) / nSt, 0);
+    P.stairs = hide(add(root, st.mesh(M.alu), -W / 2, h, stZ));
+
+    // ----- Avancée de scène du 3-en-1 (100 et 120 m²) : fermes alu, pieds vérins réglables, plancher CTBX
+    if (av > 0) {
+      const ag = new T.Group(), ak = kit();
+      add(ag, new T.Mesh(new T.BoxGeometry(W, 0.1, av), deckMats(M.under)), 0, -0.05, av / 2);
+      for (const z of [0.25, av - 0.25]) lattice(ak, [-W / 2 + 0.1, -0.36, z], [W / 2 - 0.1, -0.36, z], [0.25, 0.5], false, 0.045, 0.025);
+      const legs = Math.round(W / 2.4);
+      for (let j = 0; j <= legs; j++) for (const z of [0.25, av - 0.25]) ak.cyl(0.04, h - 0.1, -W / 2 + 0.2 + (j * (W - 0.4)) / legs, -0.1 - (h - 0.1) / 2, z, 0, 0, 0, 8);
+      ag.add(ak.mesh(M.alu));
+      P.avancee = hide(add(root, ag, 0, h, D0 / 2));
+    }
+    // Jupe de scène noire sur la face
+    const sk = kit();
+    sk.box(W, 1, 0.03, 0, -0.5, 0);
+    P.skirt = hide(add(root, sk.mesh(M.tarp), 0, h - 0.02, D0 / 2 + av + 0.03));
+
+    // ----- Casquette du 3-en-1 : prolonge le toit au-dessus de l'avancée (courte en 80/100, rallonge en 120)
+    let soundHost = front, soundZ = lF - G.edge * 0.4;
+    if (G.fascia) { // lambrequin noir de face (160), déroulé une fois le toit en place
+      const fk = kit();
+      fk.box(rW + 0.1, G.fascia, 0.04, 0, -G.fascia / 2 + 0.02, lF + 0.03);
+      P.fascia = hide(add(front, fk.mesh(M.tarp)));
+    }
+    if (G.cap) {
+      const Lcap = G.cap[m.size], cg = new T.Group(), ck = kit(), val = kit();
+      add(cg, new T.Mesh(new T.BoxGeometry(rW, 0.05, Lcap), roofMats(M.tarp)), 0, -0.025, Lcap / 2);
+      for (const x of [-rW / 2 + 0.1, rW / 2 - 0.1]) ck.box(0.1, 0.2, Lcap, x, -0.15, Lcap / 2);
+      lattice(ck, [-rW / 2, -0.22, Lcap - 0.15], [rW / 2, -0.22, Lcap - 0.15], 0.3, true, 0.045, 0.025);
+      cg.add(ck.mesh(M.alu));
+      val.box(rW, 0.6, 0.03, 0, -0.3, Lcap + 0.02); // lambrequin noir
+      cg.add(val.mesh(M.tarp));
+      P.cap = hide(add(front, cg, 0, -0.08, lF));
+      P.capZ = lF;
+      P.capL = Lcap;
+      soundHost = cg;
+      soundZ = Lcap - 0.2;
+    }
+    // ----- Ailes de son et line arrays : 400 kg par côté (60), 1,2 t par aile (3-en-1), 1,5 t en déport de face (160)
+    P.sound = [];
+    for (const s of [-1, 1]) {
+      const wg = new T.Group(), wk2 = kit();
+      if (G.son === 'tri') { lattice(wk2, [0, -0.16, 0], [s * G.wingSon, -0.16, 0], 0.3, true, 0.045, 0.026); wk2.bar([0, -0.6, -0.12], [s * G.wingSon * 0.75, -0.24, -0.12], 0.05); }
+      else lattice(wk2, [0, -0.22, 0], [s * G.wingSon, -0.22, 0], 0.4, false, 0.055, 0.03);
+      wg.add(wk2.mesh(G.son === 'tri' ? M.alu : M.steel));
+      const ax = s * (G.wingSon - 0.4);
+      const chain = add(wg, new T.Mesh(new T.BoxGeometry(0.03, 1, 0.03).translate(0, -0.5, 0), M.steel), ax, -0.35, 0);
+      const arr = add(wg, lineArray(G.arrays, M.spk), ax, -0.45, 0);
+      P.sound.push({ wg: hide(add(soundHost, wg, s * (rW / 2), 0, soundZ)), arr, chain });
+    }
+
+    // ----- Ponts lumière sur palans (descendent au trim), lyres sur le pont de face
+    P.trusses = [];
+    const tl = W - 1.2;
+    for (const zr of G.ponts) {
+      const z = zr > 0 ? hR + wingF - zr : -(hR + wingB) - zr;
+      const tk = kit(), chains = kit();
+      lattice(tk, [-tl / 2, -G.pont / 2, 0], [tl / 2, -G.pont / 2, 0], G.pont, true, 0.045, 0.025);
+      for (const x of [-tl / 3, tl / 3]) chains.box(0.03, 1, 0.03, x, -0.5, z);
+      P.trusses.push({ tg: hide(add(roof, tk.mesh(M.alu), 0, -0.1, z)), ch: hide(add(roof, chains.mesh(M.steel))), z });
+    }
+    const yLyre = under - G.drop - G.pont - 0.38;
+    for (let i = 0; i < conf.lyres; i++) addLyre(-tl / 2 + 0.6 + (i * (tl - 1.2)) / Math.max(1, conf.lyres - 1), yLyre, zc + P.trusses[0].z, i);
+
+    // ----- Fond de scène et bâches latérales, déroulés en fin de montage
+    const bd = kit(), sd = kit(), sZ0 = -D0 / 2 - 0.12, sZ1 = zPost;
+    bd.box(W + 2 * G.colT + 0.1, 1, 0.03, 0, -0.5, 0);
+    for (const s of [-1, 1]) sd.box(0.03, 1, sZ1 - sZ0, s * endX, -0.5, (sZ0 + sZ1) / 2);
+    P.tarps = [hide(add(root, bd.mesh(M.tarp), 0, under, sZ0)), hide(add(root, sd.mesh(M.tarp), 0, under, 0))];
+
+    // Public debout, en silhouettes de nuit comme sur les photos de concert
+    const zStage = zc + D0 / 2 + av;
+    const audience = new T.MeshBasicMaterial({ color: 0x03050a });
     const pos = [];
     let seed = 11;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const front = zc + half + wing + 4;
-    for (let i = 0; i < 220; i++) pos.push([(rnd() - 0.5) * (W + 10), 0.85, front + rnd() ** 0.8 * 14]);
+    for (let i = 0; i < 130; i++) pos.push([(rnd() - 0.5) * (W + 4), 0.85, zStage + 3 + rnd() ** 0.8 * 5]);
     const im = new T.InstancedMesh(new T.CapsuleGeometry(0.2, 1.1, 4, 8), audience, pos.length);
     const dummy = new T.Object3D();
     pos.forEach((p, i) => { dummy.position.set(...p); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); });
     group.add(im);
-    addHaze(W + 2, roofOpen, zc - 3, zc + 8);
-    ms.parts = { P, m, roofOpen, roofClosed, half, wing, wash };
-    world.trussH = roofOpen;
-    world.stageH = m.deckH;
+    addHaze(W + 2, under, zc - 3, zc + 8);
+
+    const halfX = Math.max(Lc / 2 + (G.trailer === 'timon' ? G.tow : 0), rW / 2 + G.wingSon + 0.5);
+    ms.parts = { P, m, G, D0, lift, rT, fT, roadUnder, workUnder, legLen: h - fT, tarpH: under - h, wash,
+      box: { halfX, top: under + rT, zF: zStage + (G.cap ? G.cap[m.size] : 0), zB: zc - D0 / 2 - 0.8, deckH: h } };
+    world.trussH = under;
+    world.stageH = h;
     pose(ms.p);
   }
 
-  // Pose de la scène pour une progression p entre 0 (repliée) et 1 (déployée)
+  // Pose de la scène pour une progression p entre 0 (repliée, prête à rouler) et 1 (déployée)
   function pose(p) {
     if (!ms.parts) return;
-    const { P, m, roofOpen, roofClosed } = ms.parts;
-    const seg = (i) => ease(clamp01((p - STEPS[i][0]) / (STEPS[i][1] - STEPS[i][0])));
-    const pj = seg(0), pr = seg(1), pw = seg(2), pf = seg(3), pl = seg(4);
-    P.jacks.forEach((j) => { j.scale.y = 0.05 + (m.deckH - 0.4) * pj; });
-    const ry = roofClosed + (roofOpen - roofClosed) * pr;
+    const { P, m, G, D0, lift, rT, fT, roadUnder, workUnder, legLen, tarpH, wash } = ms.parts;
+    const order = G.order || ORDER, sp = {};
+    order.forEach((k, i) => { sp[k] = ease(clamp01((p - WIN[i][0]) / (WIN[i][1] - WIN[i][0]))); });
+    const { calage: s1, ailes: s2, planchers: s3, toit: s4, poteaux: s5, son: s6 } = sp;
+    // 1. Calage : les tiges descendent au sol, puis soulèvent le châssis
+    const reach = clamp01(s1 / 0.5), up = clamp01((s1 - 0.45) / 0.55);
+    P.rig.position.y = lift * up;
+    const L = lerp(0.02, P.rodTop + P.rig.position.y, reach);
+    P.rods.scale.y = L;
+    P.pads.position.y = P.rodTop - L;
+    // 2. Ailes de toit : de pendantes à entrouvertes (20° sous l'horizontale, photo « ouverture hydraulique »), à plat pendant la montée du toit
+    const wingA = lerp(Math.PI / 2, 0.35, s2) * (1 - s4);
+    for (const secs of P.wings) secs.forEach(({ piv, side }, i) => {
+      if (!i) { piv.rotation.x = side * wingA; return; }
+      const u = clamp01((s2 - 0.35) / 0.65); // 2e panneau (160) : replié par-dessus, se déploie vers l'extérieur
+      piv.rotation.x = -side * Math.PI * (1 - u);
+      piv.position.y = 0.02 * (1 - u);
+    });
+    P.ends.visible = s2 < 1;
+    P.ends.scale.y = Math.max(0.01, P.endLen * (1 - s2));
+    // 3. Planchers : relevés puis à plat, pieds réglables au sol
+    const fa = clamp01(s3 / 0.78), lg = clamp01((s3 - 0.75) / 0.25);
+    const two = P.floors[0].length > 1; // 160 : 2e panneau déplié en l'air, puis rabattu avec le 1er
+    for (const secs of P.floors) secs.forEach(({ piv, side, legs }, i) => {
+      if (!i) piv.rotation.x = -side * (Math.PI / 2) * (1 - (two ? clamp01((fa - 0.4) / 0.6) : fa));
+      else {
+        const u = clamp01(fa / 0.4);
+        piv.rotation.x = side * Math.PI * (1 - u);
+        piv.position.y = -(2 * fT + 0.03) * (1 - u);
+      }
+      legs.visible = lg > 0;
+      legs.scale.y = Math.max(0.01, legLen * lg);
+    });
+    // 4. Montée du toit : 2 vérins colonnes, éléments télescopiques
+    const ry = lerp(roadUnder, workUnder, s4), dy = ry - roadUnder;
     P.roof.position.y = ry;
-    P.columns.forEach((c) => { c.scale.y = Math.max(0.01, ry - m.deckH); });
-    P.roofF.piv.rotation.x = (Math.PI / 2) * (1 - pw);
-    P.roofB.piv.rotation.x = (-Math.PI / 2) * (1 - pw);
-    P.floorF.rotation.x = (-Math.PI / 2) * (1 - pf);
-    P.floorB.rotation.x = (Math.PI / 2) * (1 - pf);
-    P.feet.forEach((f) => { f.visible = pf > 0.98; f.scale.y = m.deckH; });
-    P.back.scale.y = Math.max(0.001, (roofOpen - m.deckH - 0.2) * pl);
-    P.back.visible = pl > 0;
-    P.arrays.forEach((a) => { a.scale.y = Math.max(0.001, pl); a.visible = pl > 0; });
+    P.cols[1].position.y = dy / 2;
+    P.cols[2].position.y = dy;
+    P.colRod.scale.y = Math.max(0.01, ry - P.rodY);
+    // 5. Poteaux de coin, garde-corps, escalier, avancée, casquette, jupe
+    const po = clamp01(s5 / 0.55), ra = clamp01((s5 - 0.25) / 0.5), sta = clamp01((s5 - 0.5) / 0.5), sk = clamp01((s5 - 0.4) / 0.6);
+    P.posts.forEach((o) => { o.visible = po > 0; o.scale.y = Math.max(0.01, po); });
+    P.rails.forEach((o) => { o.visible = ra > 0; o.scale.y = Math.max(0.01, ra); });
+    P.stairs.visible = sta > 0;
+    P.stairs.scale.setScalar(Math.max(0.01, sta));
+    if (P.avancee) {
+      const a = clamp01(s5 / 0.6), b = clamp01((s5 - 0.55) / 0.3), av = m.D - D0;
+      P.avancee.visible = a > 0;
+      P.avancee.position.set(0, m.deckH - 0.3 * (1 - b), D0 / 2 - av * (1 - a));
+    }
+    if (P.cap) {
+      const c = clamp01(s5 / 0.7);
+      P.cap.visible = c > 0;
+      P.cap.position.z = P.capZ - P.capL * (1 - c);
+    }
+    P.skirt.visible = sk > 0;
+    P.skirt.scale.y = Math.max(0.01, (m.deckH - 0.02) * sk);
+    if (P.fascia) { P.fascia.visible = sk > 0; P.fascia.scale.y = Math.max(0.01, sk); }
+    // 6. Bâches, son et lumière
+    const tarp = clamp01(s6 / 0.5), snd = clamp01((s6 - 0.05) / 0.55), tr = clamp01(s6 / 0.45), ws = clamp01((s5 - 0.6) / 0.4);
+    const pl = clamp01((s6 - 0.4) / 0.6);
+    P.tarps.forEach((o) => { o.visible = tarp > 0; o.scale.y = Math.max(0.01, tarpH * tarp); });
+    P.sound.forEach(({ wg, arr, chain }) => {
+      wg.visible = ws > 0;
+      wg.scale.x = Math.max(0.01, ws);
+      arr.visible = snd > 0;
+      arr.position.y = -0.45 - 0.6 * snd;
+      chain.scale.y = 0.1 + 0.6 * snd;
+    });
+    P.trusses.forEach(({ tg, ch }) => {
+      const d = lerp(0.1, G.drop, tr);
+      tg.visible = ch.visible = s6 > 0;
+      tg.position.y = -d;
+      ch.scale.y = Math.max(0.01, d);
+    });
     ms.pl = pl;
-    ms.parts.wash.intensity = 260 * pl;
+    wash.intensity = 260 * pl;
     for (const l of lyres) {
       l.light.intensity = 120 * pl;
       l.cone.material.opacity = 0.075 * pl;
-      l.head.visible = pl > 0;
+      l.head.visible = tr >= 1;
     }
     if (haze) haze.material.opacity = 0.035 * pl;
     const bar = $('#s3-deploy-bar', el);
     if (bar) bar.style.transform = `scaleX(${p.toFixed(3)})`;
-    const step = STEPS.find(([a, b]) => p >= a && p < b);
+    const step = WIN.findIndex(([a, b]) => p >= a && p < b);
     const st = $('#s3-deploy-step', el);
-    if (st) st.textContent = p >= 1 ? 'Déployée' : p <= 0 ? 'Repliée, prête à rouler' : step?.[2] || '';
+    if (st) st.textContent = p >= 1 ? 'Déployée' : p <= 0 ? 'Repliée, prête à rouler' : PHASE[order[step]] || '';
   }
 
   function deploy(from, to) {
@@ -420,6 +804,10 @@ async function build() {
   function rebuild() {
     clear();
     ms.parts = null;
+    const msMode = conf.format === 'mediascene';
+    scene.fog.density = msMode ? 0.011 : 0.022;
+    scene.background.setHex(msMode ? 0x060c19 : 0x020409);
+    scene.fog.color.setHex(msMode ? 0x060c19 : 0x03060d);
     if (conf.format === 'mediascene') { buildMS(); toggles(); recolor(); return; }
     const s = specs();
     const stageH = conf.format === 'concert' ? 1.4 : 0.8;
@@ -591,12 +979,17 @@ async function build() {
 
   // Distance calculée pour que le plateau tienne dans la largeur, quel que soit le format de l'écran
   function presets() {
-    if (conf.format === 'mediascene') {
-      const m = msModel();
-      const span = m.trailer + 5;
-      const hfov = 2 * Math.atan(Math.tan((camera.fov * Math.PI) / 360) * camera.aspect);
-      const d = Math.max(16, (span / 2) / Math.tan(hfov / 2) + 2);
-      return { public: [[-d * 0.32, m.clear + 3.4, d * 0.92], [0, m.deckH + m.clear * 0.4, -2]], scene: [[span * 0.55, m.clear + 1.5, 9], [0, m.deckH + 1, -2]], top: [[0, d * 0.95, d * 0.55], [0, 0, -1]] };
+    if (conf.format === 'mediascene' && ms.parts) {
+      // Cadrage calculé sur l'encombrement déployé : remorque, ailes de son, hauteur du toit
+      const { halfX, top, zF, zB, deckH } = ms.parts.box;
+      const vfov = (camera.fov * Math.PI) / 180, hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
+      const d = Math.max(15, (halfX + 2) / Math.tan(hfov / 2), (top * 0.62) / Math.tan(vfov / 2));
+      const zm = (zF + zB) / 2, ty = deckH + (top - deckH) * 0.38;
+      return {
+        public: [[-d * 0.28, ty + d * 0.24, zF + d * 0.86], [halfX * 0.06, ty, zm]],
+        scene: [[halfX + d * 0.25, deckH + (top - deckH) * 0.2 + 2, zF + d * 0.62], [-0.8, deckH + (top - deckH) * 0.35, zm]],
+        top: [[0, top + d * 0.62, zm + d * 0.62], [0, deckH + (top - deckH) * 0.45, zm + 1]],
+      };
     }
     const span = specs().w + 9;
     const hfov = 2 * Math.atan(Math.tan((camera.fov * Math.PI) / 360) * camera.aspect);
